@@ -32,7 +32,7 @@ TOOLS=\
 	node2nix \
 	push \
 	pypi2nix \
-	taskcluster-hooks
+	taskcluster-cli
 VERSION=$(shell cat VERSION)
 
 APP_DEV_DBNAME=services
@@ -398,30 +398,32 @@ taskcluster-hooks.json: require-APP require-BRANCH nix
 		--argstr branch "$(BRANCH)" \
 		-o result-taskcluster-hooks.json --fallback
 
-taskcluster-hooks: taskcluster-hooks.json require-APP require-BRANCH require-DOCKER require-HOOKS_URL build-tool-push build-tool-taskcluster-hooks
-	@./result-tool-taskcluster-hooks/bin/taskcluster-hooks \
-		--hooks=./result-taskcluster-hooks.json \
-        --hooks-group=project-releng \
-        --hooks-prefix=services-$(BRANCH)-$(APP)- \
-        --hooks-url=$(HOOKS_URL) \
+taskcluster-hooks: taskcluster-hooks.json require-APP require-BRANCH require-DOCKER require-TASKCLUSTER_BASE_URL build-tool-push build-tool-taskcluster-cli
+	@./result-tool-taskcluster-hooks/bin/taskcluster \
+        --taskcluster-base-url=$(TASKCLUSTER_BASE_URL) \
         --docker-push=./result-tool-push/bin/push \
 		--docker-registry=https://index.docker.io \
         --docker-repo=garbas/releng-services \
         --docker-username=$(DOCKER_USERNAME) \
-        --docker-password=$(DOCKER_PASSWORD)
+        --docker-password=$(DOCKER_PASSWORD) \
+		hooks \
+		--hooks-file=./result-taskcluster-hooks.json \
+        --hooks-group=project-releng \
+        --hooks-prefix=services-$(BRANCH)-$(APP)-
 
 taskcluster-hooks-manual: taskcluster-hooks.json require-APP require-BRANCH require-DOCKER require-HOOKS_CREDS build-tool-push build-tool-taskcluster-hooks
-	@./result-tool-taskcluster-hooks/bin/taskcluster-hooks \
-		--hooks=./result-taskcluster-hooks.json \
-        --hooks-group=project-releng \
-        --hooks-prefix=services-$(BRANCH)-$(APP)- \
-        --hooks-client-id=$(HOOKS_CLIENT_ID) \
-        --hooks-access-token=$(HOOKS_ACCESS_TOKEN) \
+	@./result-tool-taskcluster-hooks/bin/taskcluster \
+        --taskcluster-client-id=$(HOOKS_CLIENT_ID) \
+        --taskcluster-access-token=$(HOOKS_ACCESS_TOKEN) \
         --docker-push=./result-tool-push/bin/push \
 		--docker-registry=https://index.docker.io \
         --docker-repo=garbas/releng-services \
         --docker-username=$(DOCKER_USERNAME) \
-        --docker-password=$(DOCKER_PASSWORD)
+        --docker-password=$(DOCKER_PASSWORD) \
+		hooks \
+		--hooks-file=./result-taskcluster-hooks.json \
+        --hooks-group=project-releng \
+        --hooks-prefix=services-$(BRANCH)-$(APP)-
 
 
 
@@ -521,10 +523,10 @@ require-HOOKS_CREDS:
 		exit 1; \
 	fi
 
-require-HOOKS_URL:
-	@if [[ -z "$(HOOKS_URL)" ]]; then \
+require-TASKCLUSTER_BASE_URL:
+	@if [[ -z "$(TASKCLUSTER_BASE_URL)" ]]; then \
 		echo ""; \
-		echo "You need to specify HOOKS_URL."; \
+		echo "You need to specify TASKCLUSTER_BASE_URL."; \
 		echo ""; \
 		echo ""; \
 		exit 1; \

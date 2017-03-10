@@ -275,6 +275,6 @@ let
     };
 
   };
-  overrides = import ./hooks_override.nix { inherit pkgs python; };
+  overrides = import ./requirements_override.nix { inherit pkgs python; };
 
 in python.withPackages (fix' (extends overrides generated))
