@@ -12,10 +12,10 @@ tasks:
       description: ""
       owner: "{{ event.head.user.email }}"
       source: "https://github.com/mozilla-releng/services/tree/update-tc"
-    scopes:
-      - secrets:get:repo:github.com/mozilla-releng/services:branch:update-tc
-      - hooks:modify-hook:project-releng/services-update-tc-*
-      - assume:hook-id:project-releng/services-update-tc-*
+    #scopes:
+    #  - secrets:get:repo:github.com/mozilla-releng/services:branch:update-tc
+    #  - hooks:modify-hook:project-releng/services-update-tc-*
+    #  - assume:hook-id:project-releng/services-update-tc-*
     extra:
       github:
         env: true
@@ -31,8 +31,8 @@ tasks:
       image: "nixos/nix:latest"
       features:
         taskclusterProxy: true
-      env:
-        TASKCLUSTER_SECRETS: "taskcluster/secrets/v1/secret/repo:github.com/mozilla-releng/services:branch:update-tc"
+      #env:
+      #  TASKCLUSTER_SECRETS: "taskcluster/secrets/v1/secret/repo:github.com/mozilla-releng/services:branch:update-tc"
       command:
         - "/bin/bash"
         - "-c"
