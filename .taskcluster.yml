@@ -31,9 +31,9 @@ tasks:
       image: "nixos/nix:latest"
       features:
         taskclusterProxy: true
-      #env:
-      #  TASKCLUSTER_SECRETS: "taskcluster/secrets/v1/secret/repo:github.com/mozilla-releng/services:branch:update-tc"
+      env:
+        TASKCLUSTER_SECRETS: "taskcluster/secrets/v1/secret/repo:github.com/mozilla-releng/services:branch:update-tc"
       command:
         - "/bin/bash"
         - "-c"
-        - "nix-env -iA nixpkgs.curl && mkdir /app && cd /app && curl -L https://github.com/mozilla-releng/services/archive/$GITHUB_HEAD_SHA.tar.gz -o $GITHUB_HEAD_SHA.tar.gz && tar zxf $GITHUB_HEAD_SHA.tar.gz && cd services-$GITHUB_HEAD_SHA && nix-shell nix/taskcluster.nix"
+        - "nix-env -iA nixpkgs.curl && mkdir /app && cd /app && curl -L https://github.com/mozilla-releng/services/archive/$GITHUB_HEAD_SHA.tar.gz -o $GITHUB_HEAD_SHA.tar.gz && tar zxf $GITHUB_HEAD_SHA.tar.gz && cd services-$GITHUB_HEAD_SHA && nix-shell nix/taskcluster.nix --pure --argstr taskcluster_secrets $TASKCLUSTER_SECRETS"

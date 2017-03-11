@@ -178,6 +178,7 @@ def main(ctx, taskcluster_client_id, taskcluster_access_token,
 @main.command()
 @click.pass_context
 def tasks(ctx):
+    print("YAAAAY")
     pass
 
 
@@ -186,7 +187,7 @@ def tasks(ctx):
 @click.option('--hooks-group', required=True)
 @click.option('--hooks-prefix', required=True, default="services-")
 @click.pass_context
-def hooks(ctx.hooks_file, hooks_group, hooks_prefix):
+def hooks(ctx, hooks_file, hooks_group, hooks_prefix):
     """ A tool for creating / updating taskcluster hooks (also creating and
         pushing docker images.
     """
