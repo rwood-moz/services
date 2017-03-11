@@ -6,13 +6,12 @@ let
   inherit (releng_pkgs.lib) fromRequirementsFile mkTaskclusterGithubTask;
   inherit (releng_pkgs.tools) pypi2nix;
   inherit (releng_pkgs.pkgs) writeScript;
-  inherit (releng_pkgs.pkgs.lib) fileContents replaceStrings;
+  inherit (releng_pkgs.pkgs.lib) replaceStrings;
   inherit (releng_pkgs.pkgs.stdenv) mkDerivation;
 
   python = import ./requirements.nix { inherit (releng_pkgs) pkgs; };
 
   name = "mozilla-releng-docs";
-  version = fileContents ./../../VERSION;
   src_path =
     "src/" +
       (replaceStrings ["-"] ["_"]
@@ -20,14 +19,14 @@ let
           (builtins.stringLength name - 8) name));
 
   self = mkDerivation {
-    name = "${name}-${version}";
+    inherit name;
     src = ./.;
 
     buildInputs =
       fromRequirementsFile ./requirements.txt python.packages;
 
     buildPhase = ''
-      make html RELENG_DOCS_VERSION=${version}
+      make html RELENG_DOCS_VERSION=latest
     '';
 
     installPhase = ''
@@ -36,7 +35,7 @@ let
     '';
 
     shellHook = ''
-      export RELENG_DOCS_VERSION=${version}-dev
+      export RELENG_DOCS_VERSION=develop
       cd ${src_path}
     '';
 

@@ -8,10 +8,6 @@ from setuptools import find_packages
 from setuptools import setup
 
 
-with open('VERSION') as f:
-    version = f.read().strip()
-
-
 def read_requirements(file_):
     lines = []
     with open(file_) as f:
@@ -28,7 +24,7 @@ def read_requirements(file_):
 
 setup(
     name='mozilla-releng-clobberer',
-    version=version,
+    version='0',
     description='The code behind https://clobberer.mozilla-releng.net',
     author='Mozilla Release Engineering',
     author_email='release@mozilla.com',

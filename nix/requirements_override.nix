@@ -28,10 +28,6 @@ in skipOverrides {
         self."pytest"
         self."responses"
       ];
-    patchPhase = ''
-      rm -f VERSION
-      ln -s ${../VERSION} ./VERSION
-    '';
     checkPhase = ''
       flake8 --exclude=nix_run_setup.py,migrations/,build/
       # TODO: pytest tests/

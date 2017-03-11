@@ -85,13 +85,12 @@ in rec {
 
   mkDocker =
     { name
-    , version
     , config ? {}
     , contents ? []
     }:
     dockerTools.buildImage {
       name = name;
-      tag = version;
+      tag = "latest";
       fromImage = null;
       inherit contents config;
     };
@@ -302,7 +301,6 @@ in rec {
       assert name == null -> exclude != null;
       let
         _include= if include == null then [
-          "/VERSION"
           "/${name}"
           "/tests"
           "/MANIFEST.in"
@@ -326,7 +324,6 @@ in rec {
 
   mkFrontend =
     { name
-    , version
     , src
     , src_path ? null
     , csp ? "default-src 'none'; img-src 'self' data:; script-src 'self'; style-src 'self'; font-src 'self';"
@@ -343,7 +340,7 @@ in rec {
       scss_common = ./../../lib/scss_common;
       elm_common = ./../../lib/elm_common;
       self = stdenv.mkDerivation {
-        name = "${name}-${version}";
+        inherit name;
 
         src = builtins.filterSource
           (path: type: baseNameOf path != "elm-stuff"
@@ -477,7 +474,6 @@ in rec {
     args @
     { name
     , dirname
-    , version
     , src
     , python
     , buildInputs ? []
@@ -539,7 +535,6 @@ in rec {
   mkPython =
     { name
     , dirname
-    , version
     , src
     , python
     , buildInputs ? []
@@ -564,10 +559,8 @@ in rec {
 
       self = python.mkDerivation {
 
+        inherit name src;
         namePrefix = "";
-        name = "${name}-${version}";
-
-        inherit src;
 
         buildInputs =
           [ makeWrapper
@@ -579,16 +572,11 @@ in rec {
           ] ++ propagatedBuildInputs;
 
         patchPhase = ''
-          # replace synlink with real file
-          rm VERSION
-          echo ${version} > VERSION
-
           # generate MANIFEST.in to make sure every file is included
           rm -f MANIFEST.in
           cat > MANIFEST.in <<EOF
           recursive-include ${dirname}/*
 
-          include VERSION
           include ${dirname}/*.ini
           include ${dirname}/*.json
           include ${dirname}/*.mako
@@ -648,7 +636,7 @@ in rec {
                 );
 
           docker = mkDocker {
-            inherit name version;
+            inherit name;
             contents = [ busybox self ];
             config = dockerConfig;
           };

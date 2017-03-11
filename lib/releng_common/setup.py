@@ -7,10 +7,6 @@ from __future__ import absolute_import
 from setuptools import find_packages, setup
 
 
-with open('VERSION') as f:
-    version = f.read().strip()
-
-
 def read_requirements(file_):
     lines = []
     with open(file_) as f:
@@ -27,7 +23,7 @@ def read_requirements(file_):
 
 setup(
     name='mozilla-releng-common',
-    version=version,
+    version='0',
     description='Services behind https://mozilla-releng.net',
     author='Mozilla Release Engineering',
     author_email='release@mozilla.com',

@@ -6,7 +6,7 @@ let
   inherit (releng_pkgs.lib) mkTaskclusterHook mkPython fromRequirementsFile filterSource;
   inherit (releng_pkgs.pkgs) writeScript makeWrapper mercurial cacert fetchurl;
   inherit (releng_pkgs.pkgs.stdenv) mkDerivation;
-  inherit (releng_pkgs.pkgs.lib) fileContents optional licenses;
+  inherit (releng_pkgs.pkgs.lib) optional licenses;
   inherit (releng_pkgs.tools) pypi2nix;
 
   python = import ./requirements.nix { inherit (releng_pkgs) pkgs; };
@@ -85,7 +85,6 @@ EOF
   self = mkPython {
     inherit python name dirname;
     inProduction = true;
-    version = fileContents ./../../VERSION;
     src = filterSource ./. { inherit name; };
     buildInputs =
       fromRequirementsFile ./requirements-dev.txt python.packages;
