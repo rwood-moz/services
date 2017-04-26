@@ -358,6 +358,12 @@ update-all: update-tools update-apps
 update-tools: $(foreach tool, $(TOOLS), update-tool-$(tool))
 update-apps: $(foreach app, $(APPS), update-app-$(app))
 
+update-pkgs: tmpdir nix
+	nix-shell nix/update.nix --argstr pkg pkgs
+
+update-pkgs-mozilla: tmpdir nix
+	nix-shell nix/update.nix --argstr pkg pkgs-mozilla
+
 update-app: require-APP update-app-$(APP)
 update-app-%: tmpdir nix
 	nix-shell nix/update.nix --argstr pkg $(subst update-app-,,$@)

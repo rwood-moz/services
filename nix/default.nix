@@ -4,7 +4,7 @@ let
   nixpkgs-mozilla = pkgs'.fetchFromGitHub (builtins.fromJSON (builtins.readFile ./nixpkgs-mozilla.json));
 in
 { pkgs ? import nixpkgs {}
-, mozilla ? import nixpkgs-mozilla {}
+, pkgs-mozilla ? import nixpkgs-mozilla {}
 }:
 
 let
@@ -23,12 +23,12 @@ let
       };
     };
 
-    mozilla = mozilla // {
+    pkgs-mozilla = pkgs-mozilla // {
       name = "nixpkgs-mozilla";
       update = releng_pkgs.lib.updateFromGitHub {
-        owner = "mozilla";
+        owner = "La0";
         repo = "nixpkgs-mozilla";
-        branch = "master";
+        branch = "pr-XXX";
         path = "nix/nixpkgs-mozilla.json";
       };
     };
