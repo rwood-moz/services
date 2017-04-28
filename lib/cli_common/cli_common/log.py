@@ -11,8 +11,10 @@ import logbook
 class UnstructuredRenderer(structlog.processors.KeyValueRenderer):
 
     def __call__(self, logger, method_name, event_dict):
-        event = event_dict.pop('event')
-        if event_dict:
+        event = None
+        if 'event' in event_dict:
+            event = event_dict.pop('event')
+        if event_dict or event is None:
             # if there are other keys, use the parent class to render them
             # and append to the event
             rendered = super(UnstructuredRenderer, self).__call__(

@@ -314,6 +314,7 @@ in rec {
       assert name == null -> exclude != null;
       let
         _include= if include == null then [
+          "/VERSION"
           "/${name}"
           "/tests"
           "/MANIFEST.in"
@@ -323,6 +324,7 @@ in rec {
         _exclude = if exclude == null then [
           "/${name}.egg-info"
           "/build"
+          "/cache"
         ] else exclude;
         relativePath = path:
           builtins.substring (builtins.stringLength (builtins.toString src))
@@ -559,6 +561,41 @@ in rec {
       });
     in self;
 
+  mkPythonScript = 
+    { name
+    , scriptName ? name
+    , python
+    , script
+    , passthru ? {}
+    }:
+    let
+
+      python_path =
+        "${python.__old.python}/${python.__old.python.sitePackages}:" +
+        (builtins.concatStringsSep ":"
+          (map (pkg: "${pkg}/${python.__old.python.sitePackages}")
+               (builtins.attrValues python.packages)
+          )
+        );
+
+      self = stdenv.mkDerivation {
+        inherit name passthru;
+        buildInputs = [ makeWrapper python.__old.python ];
+        buildCommand = ''
+          mkdir -p $out/bin
+          cp ${script} $out/bin/${scriptName}
+          chmod +x $out/bin/${scriptName}
+          echo "${python.__old.python}"
+          patchShebangs $out/bin/${scriptName}
+          wrapProgram $out/bin/${scriptName}\
+            --set PYTHONPATH "${python_path}" \
+            --set LANG "en_US.UTF-8" \
+            --set LOCALE_ARCHIVE ${glibcLocales}/lib/locale/locale-archive
+        '';
+      };
+
+    in self;
+
   mkPython =
     { name
     , dirname
@@ -569,6 +606,8 @@ in rec {
     , propagatedBuildInputs ? []
     , doCheck ? true
     , checkPhase ? null
+    , prePatch ? ""
+    , postPatch ? ""
     , postInstall ? ""
     , shellHook ? ""
     , dockerConfig ?
@@ -607,7 +646,7 @@ in rec {
           rm -rf build *.egg-info
         '';
 
-        patchPhase = ''
+        patchPhase = prePatch + ''
           # replace synlink with real file
           rm -f setup.cfg
           ln -s ${../setup.cfg} setup.cfg
@@ -617,6 +656,8 @@ in rec {
           cat > MANIFEST.in <<EOF
           recursive-include ${dirname}/*
 
+          include VERSION
+          include ${dirname}/VERSION
           include ${dirname}/*.ini
           include ${dirname}/*.json
           include ${dirname}/*.mako
@@ -625,7 +666,7 @@ in rec {
           recursive-exclude * __pycache__
           recursive-exclude * *.py[co]
           EOF
-        '';
+        '' + postPatch;
 
         inherit doCheck;
 

@@ -88,6 +88,13 @@ in skipOverrides {
     '';
   };
 
+  "click" = self: old: {
+    patchPhase = ''
+      # ignore the locale lookup
+      sed -i -e "s|_verify_python3_env():|_verify_python3_env(): return\nif False:|" click/_unicodefun.py
+    '';
+  };
+
   "connexion" = self: old: {
     patchPhase = ''
       sed -i -e "s|setup_requires=\['flake8'\],||" setup.py
