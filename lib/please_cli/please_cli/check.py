@@ -15,6 +15,8 @@ import please_cli.build
 CMD_HELP = '''
 Run tests, linters, etc.. for an APPLICATION.
 
+
+akjshdkjasdh
 '''
 
 
