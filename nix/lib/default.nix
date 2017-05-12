@@ -460,7 +460,7 @@ in rec {
 
           update = writeScript "update-${name}" ''
             export SSL_CERT_FILE="${cacert}/etc/ssl/certs/ca-bundle.crt"
-            pushd ${self.src_path} >> /dev/null
+            pushd "$SERVICES_ROOT"${self.src_path} >> /dev/null
 
             ${node2nix}/bin/node2nix \
               --composition node-modules.nix \
@@ -694,7 +694,7 @@ in rec {
         shellHook = ''
           export LOCALE_ARCHIVE=${glibcLocales}/lib/locale/locale-archive
 
-          pushd ${self.src_path} >> /dev/null
+          pushd "$SERVICES_ROOT"${self.src_path} >> /dev/null
           tmp_path=$(mktemp -d)
           export PATH="$tmp_path/bin:$PATH"
           export PYTHONPATH="$tmp_path/${python.__old.python.sitePackages}:$PYTHONPATH"

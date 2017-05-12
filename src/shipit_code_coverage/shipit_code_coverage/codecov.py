@@ -97,7 +97,7 @@ class CodeCov(object):
 
         cmd.extend(ordered_files)
 
-        return run_command(cmd, os.getcwd())
+        return run_command(cmd, cwd=os.getcwd())
 
     def clone_mozilla_central(self, revision):
         shared_dir = self.repo_dir + '-shared'

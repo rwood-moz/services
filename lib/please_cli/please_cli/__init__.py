@@ -22,8 +22,8 @@ import please_cli.run
 import please_cli.shell
 import please_cli.utils
 
-#excepthook = sys.excepthook
-#sys.excepthook = lambda et, e, t: click.echo("ERROR: " + str(e))  # noqa
+excepthook = sys.excepthook
+sys.excepthook = lambda et, e, t: click.echo("ERROR: " + str(e))  # noqa
 
 
 CMD_HELP = '''

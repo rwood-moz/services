@@ -98,7 +98,7 @@ class Workflow(object):
             '-p', 'obj-x86_64-pc-linux-gnu/',
             '-checks={}'.format(','.join(checks)),
         ] + modified_files
-        clang_output = run_command(cmd, self.repo_dir)
+        clang_output = run_command(cmd, cwd=self.repo_dir)
 
         # TODO Analyse clang output
         logger.info('Clang output', output=clang_output)

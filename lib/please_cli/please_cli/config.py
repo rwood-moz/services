@@ -33,7 +33,6 @@ CACHE_URL = "https://cache.mozilla-releng.net"
 
 SRC_DIR = os.path.join(ROOT_DIR, 'src')
 TMP_DIR = os.path.join(ROOT_DIR, 'tmp')
-APPS = [i.replace('_', '-') for i in os.listdir(SRC_DIR)]
 
 DEPLOYMENT_BRANCHES = ['staging', 'production', 'taskcluster-rework']
 
