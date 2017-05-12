@@ -230,3 +230,77 @@ def cmd_HEROKU(ctx,
         heroku_app + "/web",
         "latest",
     )
+
+
+@click.command()
+@click.argument(
+    'app',
+    required=True,
+    type=click.Choice(please_cli.config.APPS),
+    )
+@click.option(
+    '--nix-build',
+    required=True,
+    default=please_cli.config.NIX_BIN_DIR + 'nix-build',
+    help='`nix-build` command',
+    )
+@click.option(
+    '--nix-push',
+    required=True,
+    default=please_cli.config.NIX_BIN_DIR + 'nix-push',
+    help='`nix-push` command',
+    )
+@click.option(
+    '--taskcluster-secrets',
+    required=True,
+    )
+@click.option(
+    '--taskcluster-client-id',
+    default=None,
+    required=False,
+    )
+@click.option(
+    '--taskcluster-access-token',
+    default=None,
+    required=False,
+    )
+@click.pass_context
+def cmd_TASKCLUSTER_HOOK(ctx,
+                         app,
+                         nix_build,
+                         nix_push,
+                         taskcluster_secrets,
+                         taskcluster_client_id,
+                         taskcluster_access_token,
+                         ):
+    click.echo("TODO")
+    # taskcluster-hooks.json: require-APP require-BRANCH nix
+    # 	@nix-build nix/taskcluster_hooks.nix \
+    # 		--argstr app "$(APP)" \
+    # 		--argstr branch "$(BRANCH)" \
+    # 		-o result-taskcluster-hooks.json --fallback
+    # 
+    # taskcluster-hooks: taskcluster-hooks.json require-APP require-BRANCH require-DOCKER require-HOOKS_URL build-tool-push build-tool-taskcluster-hooks
+    # 	@./result-tool-taskcluster-hooks/bin/taskcluster-hooks \
+    # 		--hooks=./result-taskcluster-hooks.json \
+    #         --hooks-group=project-releng \
+    #         --hooks-prefix=services-$(BRANCH)-$(APP)- \
+    #         --hooks-url=$(HOOKS_URL) \
+    #         --docker-push=./result-tool-push/bin/push \
+    # 		--docker-registry=https://index.docker.io \
+    #         --docker-repo=garbas/releng-services \
+    #         --docker-username=$(DOCKER_USERNAME) \
+    #         --docker-password=$(DOCKER_PASSWORD)
+    # 
+    # taskcluster-hooks-manual: taskcluster-hooks.json require-APP require-BRANCH require-DOCKER require-HOOKS_CREDS build-tool-push build-tool-taskcluster-hooks
+    # 	@./result-tool-taskcluster-hooks/bin/taskcluster-hooks \
+    # 		--hooks=./result-taskcluster-hooks.json \
+    #         --hooks-group=project-releng \
+    #         --hooks-prefix=services-$(BRANCH)-$(APP)- \
+    #         --hooks-client-id=$(HOOKS_CLIENT_ID) \
+    #         --hooks-access-token=$(HOOKS_ACCESS_TOKEN) \
+    #         --docker-push=./result-tool-push/bin/push \
+    # 		--docker-registry=https://index.docker.io \
+    #         --docker-repo=garbas/releng-services \
+    #         --docker-username=$(DOCKER_USERNAME) \
+    #         --docker-password=$(DOCKER_PASSWORD)
