@@ -1,6 +1,6 @@
 from cli_common.taskcluster import TaskclusterClient
 from cli_common.log import get_logger
-from cli_common.utils import run_command, run_gecko_command
+from cli_common.command import run_check
 import hglib
 import os
 
@@ -71,15 +71,14 @@ class Workflow(object):
         logger.info('Modified files', files=modified_files)
 
         # mach configure
-        run_gecko_command(['./mach', 'configure'], self.repo_dir)
+        run_check(['gecko-env', './mach', 'configure'], cwd=self.repo_dir)
 
         # Build CompileDB backend
-        cmd = ['./mach', 'build-backend', '--backend=CompileDB']
-        run_gecko_command(cmd, self.repo_dir)
+        run_check(['gecko-env', './mach', 'build-backend', '--backend=CompileDB', cwd=self.repo_dir)
 
         # Build exports
-        run_gecko_command(['./mach', 'build', 'pre-export'], self.repo_dir)
-        run_gecko_command(['./mach', 'build', 'export'], self.repo_dir)
+        run_check(['gecko-env', './mach', 'build', 'pre-export'], cwd=self.repo_dir)
+        run_check(['gecko-env', './mach', 'build', 'export'], cwd=self.repo_dir)
 
         # Run static analysis through run-clang-tidy.py
         checks = [
@@ -98,7 +97,7 @@ class Workflow(object):
             '-p', 'obj-x86_64-pc-linux-gnu/',
             '-checks={}'.format(','.join(checks)),
         ] + modified_files
-        clang_output = run_command(cmd, cwd=self.repo_dir)
+        clang_output = run_check(cmd, cwd=self.repo_dir)
 
         # TODO Analyse clang output
         logger.info('Clang output', output=clang_output)

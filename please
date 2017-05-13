@@ -42,7 +42,7 @@ if [ "$USE_NIX" = "1" ]; then
     echo "Thank you!";
     exit 1;
   fi;
-  nix-build nix/default.nix -A please-cli -o result-please-cli &>/dev/null;
+  nix-build nix/default.nix -A please-cli -o result-please-cli 1>/dev/null;
   exec ./result-please-cli/bin/please "$@";
 
 else

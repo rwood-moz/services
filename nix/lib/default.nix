@@ -225,16 +225,30 @@ in rec {
         builtins.filter
           (line: ! startsWith line "-r" && line != "" && ! startsWith line "#");
 
+      removeAfter =
+        delim: line:
+          let
+            split = splitString delim line;
+          in
+            if builtins.length split > 1
+              then builtins.head split
+              else line;
+
       removeExtras =
+        builtins.map (removeAfter "[");
+
+      removeSpecs =
         builtins.map
           (line:
-            let
-              split = splitString "[" line;
-            in
-              if builtins.length split > 1
-                then builtins.head split
-                else line
-          );
+            (removeAfter "<" (
+              (removeAfter ">" (
+                (removeAfter ">=" (
+                  (removeAfter "<=" (
+                    (removeAfter "==" line))
+                  ))
+                ))
+              ))
+            ));
 
       extractEggName =
         map
@@ -257,9 +271,10 @@ in rec {
       map
         (pkg_name: builtins.getAttr pkg_name custom_pkgs)
         (removeExtras
-          (removeLines
-            (extractEggName
-              (readLines file))));
+          (removeSpecs
+            (removeLines
+              (extractEggName
+                (readLines file)))));
 
 
 
@@ -720,11 +735,12 @@ in rec {
                               ++ optional inProduction "production"
                 );
 
-          docker = mkDocker {
+          deploy = mkDocker {
             inherit name version;
             contents = [ busybox self ] ++ dockerContents;
             config = dockerConfig;
           };
+
         } // passthru;
       };
     in self;

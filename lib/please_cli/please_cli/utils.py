@@ -13,6 +13,30 @@ import cli_common.log
 log = cli_common.log.get_logger('please-cli.utils')
 
 
+def run_command(command):
+    if isinstance(command, str):
+        command = shlex.split(command)
+
+    log.debug('running command -> ' + ' '.join(command))
+
+    p = subprocess.Popen(
+        command,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.STDOUT,
+        )
+
+    out = []
+    while True:
+        line = p.stdout.readline().decode()
+        if line == '' and p.poll() is not None:
+            break
+        if line != '':
+            log.debug(line.rstrip('\n'))
+        out.append(line)
+
+    return p.returncode, '\n'.join(out)
+
+
 class ClickCustomCommand(click.Command):
     """A custom click command which doesn't indent help and epilog text.
     """

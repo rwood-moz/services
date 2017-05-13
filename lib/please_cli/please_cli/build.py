@@ -5,13 +5,29 @@
 from __future__ import absolute_import
 
 import os
-import click
-import awscli.clidriver
+import subprocess
 
+import awscli.clidriver
+import click
+import click_spinner
+import colorama
+
+import cli_common.log
 import cli_common.taskcluster
+import cli_common.command
 
 import please_cli.config
-import please_cli.utils
+
+
+log = cli_common.log.get_logger(__name__)
+
+
+def check_result(returncode):
+    if returncode == 0:
+        click.secho('\bDONE', fg='green')
+    else:
+        click.secho('\bERROR', fg='green')
+        raise click.ClickException('Please consult the logs for error.')
 
 
 @click.command()
@@ -19,6 +35,10 @@ import please_cli.utils
     'app',
     required=True,
     type=click.Choice(please_cli.config.APPS),
+    )
+@click.option(
+    '--to-deploy',
+    is_flag=True,
     )
 @click.option(
     '--nix-build',
@@ -38,16 +58,6 @@ import please_cli.utils
     default=None,
     )
 @click.option(
-    '--cache-access-key-id',
-    required=False,
-    default=None,
-    )
-@click.option(
-    '--cache-secret-access-key',
-    required=False,
-    default=None,
-    )
-@click.option(
     '--taskcluster-secrets',
     required=True,
     )
@@ -62,11 +72,10 @@ import please_cli.utils
     required=False,
     )
 def cmd(app,
+        to_deploy,
         nix_build,
         nix_push,
         cache_bucket,
-        cache_access_key_id,
-        cache_secret_access_key,
         taskcluster_secrets,
         taskcluster_client_id,
         taskcluster_access_token,
@@ -82,58 +91,71 @@ def cmd(app,
         secrets_tool = taskcluster.get_service('secrets')
         secrets = secrets_tool.get(taskcluster_secrets)['secret']
 
-        # TODO: check below secrets and error if they dont exits
-        AWS_ACCESS_KEY_ID = secrets['CACHE_ACCESS_KEY_ID']
-        AWS_SECRET_ACCESS_KEY = secrets['CACHE_SECRET_ACCESS_KEY']
+        AWS_ACCESS_KEY_ID = secrets.get('CACHE_ACCESS_KEY_ID')
+        AWS_SECRET_ACCESS_KEY = secrets.get('CACHE_SECRET_ACCESS_KEY')
 
-    if app in ['releng-frontend', 'releng-docs', 'shipit-frontend']:
-        code, output =  please_cli.utils.run_command(
-            '{nix_build} {ROOT_DIR}/nix/default.nix -A apps.{app} -o {ROOT_DIR}/result-{app}'.format(  # noqa
-                app=app,
-                nix_build=nix_build,
-                ROOT_DIR=please_cli.config.ROOT_DIR,
-                ))
-    else:
-        code, output =  please_cli.utils.run_command(
-            '{nix_build} {ROOT_DIR}/nix/default.nix -A apps.{app}.docker -o {ROOT_DIR}/result-{app}'.format(  # noqa
-                app=app,
-                nix_build=nix_build,
-                ROOT_DIR=please_cli.config.ROOT_DIR,
-                ))
-    # TODO: report errors correctly
-    # TODO: also build hooks / docker images
+        if AWS_ACCESS_KEY_ID is None or AWS_SECRET_ACCESS_KEY is None:
+            raise click.UsageError(click.wrap_text(
+                'ERROR: CACHE_ACCESS_KEY_ID and/or CACHE_SECRET_ACCESS_KEY '
+                'are not in Taskcluster secret (`{}`).'.format(taskcluster_secrets)
+            ))
+
+    command = [
+        nix_build,
+        please_cli.config.ROOT_DIR + '/nix/default.nix',
+        '-A', app + (to_deploy and '.deploy' or ''),
+        '-o', please_cli.config.ROOT_DIR + '/result-' + app,
+    ]
+
+    click.echo('Building {} ... '.format(app), nl=False)
+    with click_spinner.spinner():
+        result, output, error = cli_common.command.run(
+            command,
+            stream=True,
+            stderr=subprocess.STDOUT,
+        )
+        check_result(result)
 
     if cache_bucket:
         tmp_cache_dir = os.path.join(please_cli.config.TMP_DIR, 'cache')
         outputs = ' '.join([
-            item
+            os.path.join(please_cli.config.ROOT_DIR, item)
             for item in os.listdir(please_cli.config.ROOT_DIR)
-            if item.startswith('result-')
+            if item.startswith('result-' + app)
         ])
 
         if not os.path.exists(tmp_cache_dir):
             os.makedirs(tmp_cache_dir)
 
-        code, output =  please_cli.utils.run_command(
-            '{nix_push} --dest {tmp_cache_dir} --force {outputs}'.format(  # noqa
-                nix_push=nix_push,
-                tmp_cache_dir=tmp_cache_dir,
-                outputs=outputs,
-                ))
-        # TODO: report errors correctly
+        command = [
+            nix_push,
+            '--dest', tmp_cache_dir,
+            '--force', outputs,
+        ]
+        click.echo('Building cache ... '.format(app), nl=False)
+        with click_spinner.spinner():
+            result, output, error =  cli_common.command.run(
+                command,
+                stream=True,
+                stderr=subprocess.STDOUT,
+            )
+            check_result(result)
 
         os.environ['AWS_ACCESS_KEY_ID'] = AWS_ACCESS_KEY_ID
         os.environ['AWS_SECRET_ACCESS_KEY'] = AWS_SECRET_ACCESS_KEY
         aws = awscli.clidriver.create_clidriver().main
-        result = aws([
-            's3',
-            'sync',
-            '--size-only',
-            '--acl', 'public-read',
-            tmp_cache_dir,
-            's3://' + cache_bucket,
-        ])
-        # TODO: handle result (should be 0)
+        click.echo('Pushing cache to S3 ... '.format(app), nl=False)
+        with click_spinner.spinner():
+            result = aws([
+                's3',
+                'sync',
+                '--quiet',
+                '--size-only',
+                '--acl', 'public-read',
+                tmp_cache_dir,
+                's3://' + cache_bucket,
+            ])
+            check_result(result)
 
 
 if __name__ == "__main__":
