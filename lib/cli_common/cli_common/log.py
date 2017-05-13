@@ -58,10 +58,13 @@ def init_app(app):
     Init logger from a Flask Application
     """
     mozdef = app.config.get('MOZDEF_TARGET', None)
-    init_logger(app.debug, mozdef)
+    level = logbook.ERROR
+    if app.debug:
+        level = logbook.DEBUG
+    init_logger(mozdef=mozdef)
 
 
-def init_logger(level=logbook.INFO, handler=None, mozdef=None):
+def init_logger(level=logbook.ERROR, handler=None, mozdef=None):
 
     # Output logs on stderr
     if handler is None:
