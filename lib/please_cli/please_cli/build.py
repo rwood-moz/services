@@ -24,9 +24,9 @@ log = cli_common.log.get_logger(__name__)
 
 def check_result(returncode):
     if returncode == 0:
-        click.secho('\bDONE', fg='green')
+        click.secho('DONE', fg='green')
     else:
-        click.secho('\bERROR', fg='green')
+        click.secho('ERROR', fg='red')
         raise click.ClickException('Please consult the logs for error.')
 
 
@@ -114,7 +114,7 @@ def cmd(app,
             stream=True,
             stderr=subprocess.STDOUT,
         )
-        check_result(result)
+    check_result(result)
 
     if cache_bucket:
         tmp_cache_dir = os.path.join(please_cli.config.TMP_DIR, 'cache')
@@ -139,7 +139,7 @@ def cmd(app,
                 stream=True,
                 stderr=subprocess.STDOUT,
             )
-            check_result(result)
+        check_result(result)
 
         os.environ['AWS_ACCESS_KEY_ID'] = AWS_ACCESS_KEY_ID
         os.environ['AWS_SECRET_ACCESS_KEY'] = AWS_SECRET_ACCESS_KEY
@@ -155,7 +155,7 @@ def cmd(app,
                 tmp_cache_dir,
                 's3://' + cache_bucket,
             ])
-            check_result(result)
+        check_result(result)
 
 
 if __name__ == "__main__":

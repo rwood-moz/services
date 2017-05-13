@@ -6,6 +6,7 @@ from __future__ import absolute_import
 
 import click
 import os
+import subprocess
 
 import cli_common.log
 import please_cli.config
@@ -64,6 +65,16 @@ EXAMPLES:
     help='Run in zsh',
     )
 @click.option(
+    '-q', '--quiet',
+    is_flag=True,
+    help='Don\'t display output of a command.',
+    )
+@click.option(
+    '-C', '--command',
+    default=None,
+    help='Command to run in shell and then exit;',
+    )
+@click.option(
     '--nix-shell',
     required=True,
     default=please_cli.config.NIX_BIN_DIR + 'nix-shell',
@@ -71,20 +82,38 @@ EXAMPLES:
         please_cli.config.NIX_BIN_DIR + 'nix-shell',
         ),
     )
-def cmd(app, zsh, nix_shell):
-    command = '{nix_shell} {default_nix} -A {app} {zsh}'.format(
-        app=app,
-        nix_shell=nix_shell,
-        default_nix=os.path.join(
-            please_cli.config.ROOT_DIR, 'nix/default.nix'),
-        zsh=zsh and '--run zsh' or '',
-    )
+def cmd(app, zsh, quiet, command, nix_shell):
+
+    run = []
+    if zsh or command:
+        run.append('--run')
+    if command:
+        run.append(command + '; exit')
+    elif zsh:
+        run.append('zsh')
+
+    _command = [
+        nix_shell,
+        os.path.join(please_cli.config.ROOT_DIR, 'nix/default.nix'),
+        app,
+    ] + run
 
     os.environ['SERVICES_ROOT'] = please_cli.config.ROOT_DIR + '/'
 
-    log.debug('Running command using os.system', command=command)
-    os.system(command)
 
+    if command:
+        handle_stream_line = None
+        if quiet is False:
+            handle_stream_line = click.echo,
+        return cli_common.command.run(
+            command,
+            stream=True,
+            handle_stream_line=handle_stream_line,
+            stderr=subprocess.STDOUT,
+        )
+    else:
+        log.debug('Running command using os.system', command=_command)
+        return os.system(_command) / 256, '', ''
 
 if __name__ == "__main__":
     cmd()
