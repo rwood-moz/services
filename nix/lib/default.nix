@@ -520,6 +520,8 @@ in rec {
     let
       self = mkPython (args // {
 
+        buildInputs = [ releng_pkgs.postgresql.package ] ++ buildInputs;
+
         postInstall = ''
           mkdir -p $out/bin
           ln -s ${python.packages."Flask"}/bin/flask $out/bin

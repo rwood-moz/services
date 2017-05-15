@@ -16,7 +16,6 @@ import please_cli.check_cache
 import please_cli.create_certs
 import please_cli.deploy
 import please_cli.github
-import please_cli.initdb
 import please_cli.maintanance
 import please_cli.nixify
 import please_cli.run
@@ -43,21 +42,21 @@ To run tests, linters, etc... do:
 
 Above is usefull to run before pushing code to upstream repository.
 
-'''.format(
-)
-
-CMD_EPILOG = '''
 \b
 APPLICATIONS:
 {apps}
 
+'''.format(
+    apps=''.join([' - ' + i + '\n' for i in please_cli.config.APPS]),
+)
+
+CMD_EPILOG = '''
 For more information look at:
 
   https://docs.mozilla-releng.net
 
 Happy hacking!
 '''.format(
-    apps=''.join([' - ' + i + '\n' for i in please_cli.config.APPS]),
 )
 
 
@@ -105,14 +104,16 @@ cmd.add_command(please_cli.run.cmd, "run")
 cmd.add_command(please_cli.shell.cmd, "shell")
 
 
-@click.group("more")
+@click.group()
 @click.pass_context
 def cmd_more(ctx):
+    """Different tools and helping utilities.
+    """
     if ctx.invoked_subcommand is None:
         click.echo(ctx.get_help())
 
 
-cmd.add_command(cmd_more, "misc")
+cmd.add_command(cmd_more, "tools")
 cmd_more.add_command(please_cli.build.cmd, "build")
 cmd_more.add_command(please_cli.check_cache.cmd, "check-cache")
 cmd_more.add_command(please_cli.create_certs.cmd, "create-certs")
@@ -120,7 +121,6 @@ cmd_more.add_command(please_cli.deploy.cmd_HEROKU, "deploy:heroku")
 cmd_more.add_command(please_cli.deploy.cmd_S3, "deploy:S3")
 cmd_more.add_command(please_cli.deploy.cmd_TASKCLUSTER_HOOK, "deploy:hook")
 cmd_more.add_command(please_cli.github.cmd, "github")
-cmd_more.add_command(please_cli.initdb.cmd, "initdb")
 cmd_more.add_command(please_cli.maintanance.cmd_off, "maintanance:off")
 cmd_more.add_command(please_cli.maintanance.cmd_on, "maintanance:on")
 cmd_more.add_command(please_cli.nixify.cmd, "nixify")

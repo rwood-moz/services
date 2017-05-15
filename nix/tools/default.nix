@@ -49,10 +49,6 @@ in {
     '';
   };
 
-  createcert = (import ./createcert.nix { inherit releng_pkgs; }) // {
-    update = null;
-  };
-
   mercurial = import ./mercurial.nix { inherit releng_pkgs; };
 
 }

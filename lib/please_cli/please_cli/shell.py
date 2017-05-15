@@ -95,25 +95,25 @@ def cmd(app, zsh, quiet, command, nix_shell):
     _command = [
         nix_shell,
         os.path.join(please_cli.config.ROOT_DIR, 'nix/default.nix'),
-        app,
+        '-A', app,
     ] + run
 
     os.environ['SERVICES_ROOT'] = please_cli.config.ROOT_DIR + '/'
 
-
     if command:
         handle_stream_line = None
         if quiet is False:
-            handle_stream_line = click.echo,
+            handle_stream_line = click.echo
         return cli_common.command.run(
-            command,
+            _command,
             stream=True,
             handle_stream_line=handle_stream_line,
             stderr=subprocess.STDOUT,
         )
     else:
         log.debug('Running command using os.system', command=_command)
-        return os.system(_command) / 256, '', ''
+        return os.system(' '.join(_command)) / 256, '', ''
+
 
 if __name__ == "__main__":
     cmd()

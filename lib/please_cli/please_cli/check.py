@@ -51,8 +51,16 @@ def check_result(returncode, output):
     required=True,
     type=click.Choice(please_cli.config.APPS),
     )
+@click.option(
+    '--nix-shell',
+    required=True,
+    default=please_cli.config.NIX_BIN_DIR + 'nix-shell',
+    help='Path to nix-shell command (default: {}).'.format(
+        please_cli.config.NIX_BIN_DIR + 'nix-shell',
+        ),
+    )
 @click.pass_context
-def cmd(ctx, app):
+def cmd(ctx, app, nix_shell):
     checks = please_cli.config.APPS.get(app, {}).get('checks')
 
     if not checks:
@@ -66,6 +74,7 @@ def cmd(ctx, app):
                                                    app=app,
                                                    quiet=True,
                                                    command=check_command,
+                                                   nix_shell=nix_shell,
                                                    )
         check_result(returncode, output)
 

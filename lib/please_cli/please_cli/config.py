@@ -37,68 +37,87 @@ TMP_DIR = os.path.join(ROOT_DIR, 'tmp')
 DEPLOYMENT_BRANCHES = ['staging', 'production', 'taskcluster-rework']
 
 
-NIX_BIN_DIR = ""  # must end with /
+NIX_BIN_DIR = os.environ.get("NIX_BIN_DIR", "")  # must end with /
+OPENSSL_BIN_DIR = os.environ.get("OPENSSL_BIN_DIR", "")  # must end with /
+OPENSSL_ETC_DIR = os.environ.get("OPENSSL_ETC_DIR", "")  # must end with /
+POSTGRESQL_BIN_DIR = os.environ.get("POSTGRESQL_BIN_DIR", "")  # must end with /
 
 with open(os.path.join(os.path.dirname(__file__), 'VERSION')) as f:
     VERSION = f.read().strip()
 
+
 # TODO: below data should be placed in src/<app>/default.nix files alongside
 APPS = {
     'postgresql': {
-        'run': 'CLI',
+        'run': 'POSTGRESQL',
         'run_options': {
-            'pre_commands': [
-                'please_cli.misc.initdb',
-            ],
-            'cli_args': [
-                ('-D', TMP_DIR + '/postgres'),
-                ('-h', 'localhost'),
-                ('-p', 9000),
-            ],
+            'port': 9000,
+            'data_dir': os.path.join(TMP_DIR, 'postgresql'),
         },
     },
     'releng-archiver': {
+        'checks': [
+            ('Checking code quality', 'flake8'),
+            ('Running tests', 'pytest tests/'),
+        ],
         'run': 'FLASK',
         'run_options': {
             'port': 8005,
         },
+        'requires': [
+            'postgresql',
+        ],
         'deploy': 'HEROKU',
         'deploy_option': {
             'staging': {
                 'heroku_app': 'releng-staging-archiver',
+                'url': 'https://archiver.staging.mozilla-releng.net',
             },
             'production': {
                 'heroku_app': 'releng-production-archiver',
+                'url': 'https://archiver.mozilla-releng.net',
             },
         },
     },
     'releng-clobberer': {
+        'checks': [
+            ('Checking code quality', 'flake8'),
+            ('Running tests', 'pytest tests/'),
+        ],
         'run': 'FLASK',
         'run_options': {
             'port': 8001,
         },
+        'requires': [
+            'postgresql',
+        ],
         'deploy': 'HEROKU',
         'deploy_option': {
             'staging': {
                 'heroku_app': 'releng-staging-clobberer',
+                'url': 'https://clobberer.staging.mozilla-releng.net',
             },
             'production': {
                 'heroku_app': 'releng-production-clobberer',
+                'url': 'https://clobberer.mozilla-releng.net',
             },
         },
     },
     'releng-docs': {
         'run': 'SPHINX',
         'run_options': {
+            'schema': 'http',
             'port': 7000,
         },
         'deploy': 'S3',
         'deploy_option': {
             'staging': {
                 's3_bucket': 'releng-staging-docs',
+                'url': 'https://docs.staging.mozilla-releng.net',
             },
             'production': {
                 's3_bucket': 'releng-production-docs',
+                'url': 'https://docs.mozilla-releng.net',
             },
         }
     },
@@ -107,77 +126,77 @@ APPS = {
         'run_options': {
             'port': 8000,
         },
+        'requires': [
+            'releng-docs',
+            'releng-clobberer',
+            'releng-tooltool',
+            'releng-treestatus',
+            'releng-mapper',
+            'releng-archiver',
+        ],
         'deploy': 'S3',
         'deploy_option': {
             'staging': {
                 's3_bucket': 'releng-staging-frontend',
-                'flags': {
-                    'version': 'v' + VERSION,
-                    'docs-url': 'https://docs.staging.mozilla-releng.net',
-                    'clobberer-url': 'https://clobberer.staging.mozilla-releng.net',
-                    'tooltool-url': 'https://tooltool.staging.mozilla-releng.net',
-                    'treestatus-url': 'https://treestatus.staging.mozilla-releng.net',
-                    'mapper-url': 'https://mapper.staging.mozilla-releng.net',
-                    'archiver-url': 'https://archiver.staging.mozilla-releng.net',
-                },
+                'url': 'https://staging.mozilla-releng.net',
                 'csp': [
                     'https://auth.taskcluster.net',
-                    'https://clobberer.staging.mozilla-releng.net',
-                    'https://tooltool.staging.mozilla-releng.net',
-                    'https://treestatus.staging.mozilla-releng.net',
-                    'https://mapper.staging.mozilla-releng.net',
-                    'https://archiver.staging.mozilla-releng.net',
                 ],
             },
             'production': {
                 's3_bucket': 'releng-production-frontend',
-                'flags': {
-                    'version': 'v' + VERSION,
-                    'docs-url': 'https://docs.mozilla-releng.net',
-                    'clobberer-url': 'https://clobberer.mozilla-releng.net',
-                    'tooltool-url': 'https://tooltool.mozilla-releng.net',
-                    'treestatus-url': 'https://treestatus.mozilla-releng.net',
-                    'mapper-url': 'https://mapper.mozilla-releng.net',
-                    'archiver-url': 'https://archiver.mozilla-releng.net',
-                },
+                'url': 'https://mozilla-releng.net',
                 'csp': [
                     'https://auth.taskcluster.net',
-                    'https://clobberer.mozilla-releng.net',
-                    'https://tooltool.mozilla-releng.net',
-                    'https://treestatus.mozilla-releng.net',
-                    'https://mapper.mozilla-releng.net',
-                    'https://archiver.mozilla-releng.net',
                 ],
             },
         },
     },
     'releng-mapper': {
+        'checks': [
+            ('Checking code quality', 'flake8'),
+            ('Running tests', 'pytest tests/'),
+        ],
         'run': 'FLASK',
         'run_options': {
             'port': 8004,
         },
+        'requires': [
+            'postgresql',
+        ],
         'deploy': 'HEROKU',
         'deploy_option': {
             'staging': {
                 'heroku_app': 'releng-staging-mapper',
+                'url': 'https://mapper.staging.mozilla-releng.net',
             },
             'production': {
                 'heroku_app': 'releng-production-mapper',
+                'url': 'https://mapper.mozilla-releng.net',
             },
         },
     },
     'releng-tooltool': {
+        'checks': [
+            ('Checking code quality', 'flake8'),
+            ('Running tests', 'pytest tests/'),
+        ],
         'run': 'FLASK',
         'run_options': {
             'port': 8002,
         },
+        'requires': [
+            'postgresql',
+        ],
         'deploy': 'HEROKU',
         'deploy_option': {
             'staging': {
                 'heroku_app': 'releng-staging-tooltool',
+                'url': 'https://tooltool.staging.mozilla-releng.net',
             },
             'production': {
                 'heroku_app': 'releng-production-tooltool',
+                'url': 'https://tooltool.mozilla-releng.net',
             },
         },
     },
@@ -190,13 +209,18 @@ APPS = {
         'run_options': {
             'port': 8003,
         },
+        'requires': [
+            'postgresql',
+        ],
         'deploy': 'HEROKU',
         'deploy_option': {
             'staging': {
                 'heroku_app': 'releng-staging-treestatus',
+                'url': 'https://treestatus.staging.mozilla-releng.net',
             },
             'production': {
                 'heroku_app': 'releng-production-treestatus',
+                'url': 'https://treestatus.mozilla-releng.net',
             },
         },
     },
@@ -206,96 +230,135 @@ APPS = {
         'run': 'ELM',
         'run_options': {
             'port': 8010,
+            'envs': {
+                'WEBPACK_BUGZILLA_URL': 'https://bugzilla-dev.allizom.org',
+            }
         },
+        'requires': [
+            'uplift',
+        ],
         'deploy': 'S3',
         'deploy_option': {
             'staging': {
                 's3_bucket': 'shipit-staging-frontend',
-                'flags': {
-                    'version': 'v' + VERSION,
-                    'uplift-url': 'https://dashboard.shipit.staging.mozilla-releng.net',
-                    'bugzilla-url': 'https://bugzilla.mozilla.org',
+                'url': 'https://shipit.staging.mozilla-releng.net',
+                'envs': {
+                    'WEBPACK_BUGZILLA_URL': 'https://bugzilla.mozilla.org',
                 },
                 'csp': [
                     'https://auth.taskcluster.net',
-                    'https://dashboard.shipit.staging.mozilla-releng.net',
                     'https://bugzilla.mozilla.org',
                 ],
             },
             'production': {
                 's3_bucket': 'shipit-production-frontend',
-                'flags': {
-                    'version': 'v' + VERSION,
-                    'uplift-url': 'https://dashboard.shipit.mozilla-releng.net',
+                'url': 'https://shipit.mozilla-releng.net',
+                'envs': {
+                    'WEBPACK_BUGZILLA_URL': 'https://bugzilla.mozilla.org',
                 },
                 'csp': [
                     'https://auth.taskcluster.net',
-                    'https://dashboard.shipit.mozilla-releng.net',
                     'https://bugzilla.mozilla.org',
                 ],
             },
         },
     },
     'shipit-pipeline': {
+        'checks': [
+            ('Checking code quality', 'flake8'),
+            ('Running tests', 'pytest tests/'),
+        ],
         'run': 'FLASK',
         'run_options': {
             'port': 8012,
         },
+        'requires': [
+            'postgresql',
+        ],
         'deploy': 'HEROKU',
         'deploy_option': {
             'staging': {
                 'heroku_app': 'shipit-staging-pipeline',
+                'url': 'https://pipeline.shipit.staging.mozilla-releng.net',
             },
             'production': {
                 'heroku_app': 'shipit-production-pipeline',
+                'url': 'https://pipeline.shipit.mozilla-releng.net',
             },
         },
     },
     # TODO: shipit_pulse_listener
     # TODO: shipit_risk_assessment
     'shipit-signoff': {
+        'checks': [
+            ('Checking code quality', 'flake8'),
+            ('Running tests', 'pytest tests/'),
+        ],
         'run': 'FLASK',
         'run_options': {
             'port': 8013,
         },
+        'requires': [
+            'postgresql',
+        ],
         'deploy': 'HEROKU',
         'deploy_option': {
             'staging': {
                 'heroku_app': 'shipit-staging-signoff',
+                'url': 'https://signoff.shipit.staging.mozilla-releng.net',
             },
             'production': {
                 'heroku_app': 'shipit-production-signoff',
+                'url': 'https://signoff.shipit.mozilla-releng.net',
             },
         },
     },
     # TODO: shipit_static_analysis
     'shipit-taskcluster': {
+        'checks': [
+            ('Checking code quality', 'flake8'),
+            ('Running tests', 'pytest tests/'),
+        ],
         'run': 'FLASK',
         'run_options': {
             'port': 8014,
         },
+        'requires': [
+            'postgresql',
+        ],
         'deploy': 'HEROKU',
         'deploy_option': {
             'staging': {
                 'heroku_app': 'shipit-staging-taskcluster',
+                'url': 'https://taskcluster.shipit.staging.mozilla-releng.net',
             },
             'production': {
                 'heroku_app': 'shipit-production-taskcluster',
+                'url': 'https://taskcluster.shipit.mozilla-releng.net',
             },
         },
     },
     'shipit-uplift': {
+        'checks': [
+            ('Checking code quality', 'flake8'),
+            ('Running tests', 'pytest tests/'),
+        ],
         'run': 'FLASK',
         'run_options': {
             'port': 8011,
         },
+        'requires': [
+            'postgresql',
+        ],
         'deploy': 'HEROKU',
         'deploy_option': {
             'staging': {
                 'heroku_app': 'shipit-staging-dashboard',
+                'url': 'https://uplift.shipit.staging.mozilla-releng.net',
             },
             'production': {
                 'heroku_app': 'shipit-production-dashboard',
+                'url': 'https://uplift.shipit.mozilla-releng.net',
             },
         },
     },

@@ -4,24 +4,194 @@
 
 from __future__ import absolute_import
 
-import click
 import os
+import subprocess
 
+import click
+import click_spinner
+
+import cli_common.command
 import please_cli.config
 
 
+def check_result(returncode, output):
+    if returncode == 0:
+        click.secho('DONE', fg='green')
+    else:
+        click.secho('ERROR', fg='red')
+
+    if returncode != 0:
+        show_details = click.confirm(
+            '    Show details?', default=False, abort=False, prompt_suffix=' ',
+            show_default=True, err=False)
+        if show_details:
+            click.echo_via_pager(output)
+        raise click.ClickException('Something went wrong, please look at the logs.')
+
+
 @click.command()
-def cmd(app):
-    pass
-    # TODO
-    #build-certs: tmpdir build-tool-createcert
-    #	@if [ ! -e "$$PWD/tmp/ca.crt" ] && \
-    #	   [ ! -e "$$PWD/tmp/ca.key" ] && \
-    #	   [ ! -e "$$PWD/tmp/ca.srl" ] && \
-    #	   [ ! -e "$$PWD/tmp/server.crt" ] && \
-    #	   [ ! -e "$$PWD/tmp/server.key" ]; then \
-    #	  ./result-tool-createcert/bin/createcert $$PWD/tmp; \
-    #	fi
+@click.option(
+    '--certificates-dir',
+    required=True,
+    default=os.path.join(please_cli.config.TMP_DIR, 'certs'),
+    help='Directory where to create certificated',
+    )
+@click.option(
+    '--openssl',
+    required=True,
+    default=please_cli.config.OPENSSL_BIN_DIR + 'openssl',
+    help='Path to openssl command (default: {}).'.format(
+        please_cli.config.OPENSSL_BIN_DIR + 'openssl',
+        ),
+    )
+@click.option(
+    '--c-rehash',
+    required=True,
+    default=please_cli.config.OPENSSL_BIN_DIR + 'c_rehash',
+    help='Path to c_rehash command (default: {}).'.format(
+        please_cli.config.OPENSSL_BIN_DIR + 'c_rehash',
+        ),
+    )
+@click.option(
+    '--openssl-config',
+    required=True,
+    default=please_cli.config.OPENSSL_ETC_DIR + 'openssl.cnf',
+    help='Path to openssl configuration (default: {}).'.format(
+        please_cli.config.OPENSSL_ETC_DIR + 'openssl.cnf',
+        ),
+    )
+def cmd(certificates_dir, openssl, c_rehash, openssl_config):
+
+    if not os.path.isdir(certificates_dir):
+        click.echo(' => Creating certificates directory ... ')
+        with click_spinner.spinner():
+            os.makedirs(certificates_dir)
+        check_result(0, '')
+
+    ca_key_file = os.path.join(certificates_dir, 'ca.key')
+    ca_cert_file = os.path.join(certificates_dir, 'ca.crt')
+
+    if os.path.exists(ca_key_file) or os.path.exists(ca_cert_file):
+        click.echo(' => Removing existing certificates ... ')
+        with click_spinner.spinner():
+            os.unlink(ca_key_file)
+            os.unlink(ca_cert_file)
+        check_result(0, '')
+
+    click.echo(' => Building CA certificate key ... ', nl=False)
+    with click_spinner.spinner():
+        result, output, error = cli_common.command.run(
+            [
+                openssl,
+                'genrsa',
+                '-out', ca_key_file,
+                '2048',
+            ],
+            stream=True,
+            stderr=subprocess.STDOUT,
+        )
+    check_result(result, output)
+
+    click.echo(' => Self signing CA certificate  ... ', nl=False)
+    with click_spinner.spinner():
+        result, output, error = cli_common.command.run(
+            [
+                openssl,
+                'req', '-x509', '-new', '-nodes',
+                '-key', ca_key_file,
+                '-days', '1024',
+                '-out', ca_cert_file,
+                '-subj', '/C=FR/ST=France/L=Paris/O=Mozilla/OU=Dev/CN=RelEngServices',
+            ],
+            stream=True,
+            stderr=subprocess.STDOUT,
+        )
+    check_result(result, output)
+
+    server_key_file = os.path.join(certificates_dir, 'server.key')
+    server_cert_file = os.path.join(certificates_dir, 'server.crt')
+    server_csr_file = os.path.join(certificates_dir, 'server.csr')
+    server_cnf_file = os.path.join(certificates_dir, 'server.cnf')
+
+    if os.path.exists(server_key_file):
+        os.unlink(server_key_file)
+
+    if os.path.exists(server_cert_file):
+        os.unlink(server_cert_file)
+
+    if os.path.exists(server_csr_file):
+        os.unlink(server_csr_file)
+
+    if os.path.exists(server_cnf_file):
+        os.unlink(server_cnf_file)
+
+    click.echo(' => Building backend private certificate key ... ', nl=False)
+    with click_spinner.spinner():
+        result, output, error = cli_common.command.run(
+            [
+                openssl,
+                'genrsa',
+                '-out', server_key_file,
+                '2048',
+            ],
+            stream=True,
+            stderr=subprocess.STDOUT,
+        )
+    check_result(result, output)
+    
+    click.echo(' => Creating openssh configuration ... ', nl=False)
+    with open(openssl_config, 'r') as f:
+        openssl_config_content = f.read()
+    with open(server_cnf_file, 'w+') as f:
+        f.write('{}\n[SAN]\nsubjectAltName=DNS:localhost,DNS:127.0.0.1'.format(openssl_config_content))
+    check_result(0, '')
+
+    click.echo(' => Building backend csr certificate with mandatory subjectAltName ... ', nl=False)
+    with click_spinner.spinner():
+        result, output, error = cli_common.command.run(
+            [
+                openssl,
+                'req', '-sha256', '-new',
+                '-key', server_key_file,
+                '-out', server_csr_file,
+                '-subj', '/C=FR/ST=France/L=Paris/O=Mozilla/OU=Dev/CN=localhost',
+                '-reqexts', 'SAN',
+                '-config', server_cnf_file,
+            ],
+            stream=True,
+            stderr=subprocess.STDOUT,
+        )
+    check_result(result, output)
+
+    click.echo(' => Signing server certificate with CA certificate ... ', nl=False)
+    with click_spinner.spinner():
+        result, output, error = cli_common.command.run(
+            [
+                openssl,
+                'x509', '-req',
+                '-in', server_csr_file,
+                '-CA', ca_cert_file,
+                '-CAkey', ca_key_file,
+                '-CAcreateserial',
+                '-out', server_cert_file,
+                '-days', '500',
+                '-extensions', 'SAN',
+                '-extfile', server_cnf_file,
+            ],
+            stream=True,
+            stderr=subprocess.STDOUT,
+        )
+    check_result(result, output)
+
+    click.echo(' => Hash certificates directory ... ', nl=False)
+    with click_spinner.spinner():
+        os.unlink(server_csr_file)
+        result, output, error = cli_common.command.run(
+            [c_rehash, certificates_dir],
+            stream=True,
+            stderr=subprocess.STDOUT,
+        )
+    check_result(result, output)
 
 
 if __name__ == "__main__":
