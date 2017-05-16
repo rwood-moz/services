@@ -9,6 +9,7 @@ import logbook
 import cli_common.log
 
 import please_cli.build
+import please_cli.build_base_image
 import please_cli.check
 import please_cli.check_cache
 import please_cli.create_certs
@@ -49,7 +50,7 @@ APPLICATIONS:
 )
 
 CMD_EPILOG = '''
-For more information look at:
+For tools information look at:
 
   https://docs.mozilla-releng.net
 
@@ -103,24 +104,25 @@ cmd.add_command(please_cli.shell.cmd, "shell")
 
 @click.group()
 @click.pass_context
-def cmd_more(ctx):
+def cmd_tools(ctx):
     """Different tools and helping utilities.
     """
     if ctx.invoked_subcommand is None:
         click.echo(ctx.get_help())
 
 
-cmd.add_command(cmd_more, "tools")
-cmd_more.add_command(please_cli.build.cmd, "build")
-cmd_more.add_command(please_cli.check_cache.cmd, "check-cache")
-cmd_more.add_command(please_cli.create_certs.cmd, "create-certs")
-cmd_more.add_command(please_cli.deploy.cmd_HEROKU, "deploy:HEROKU")
-cmd_more.add_command(please_cli.deploy.cmd_S3, "deploy:S3")
-cmd_more.add_command(please_cli.deploy.cmd_TASKCLUSTER_HOOK, "deploy:TASKCLUSTER_HOOK")
-cmd_more.add_command(please_cli.github.cmd, "github")
-cmd_more.add_command(please_cli.maintanance.cmd_off, "maintanance:off")
-cmd_more.add_command(please_cli.maintanance.cmd_on, "maintanance:on")
-cmd_more.add_command(please_cli.nixify.cmd, "nixify")
+cmd.add_command(cmd_tools, "tools")
+cmd_tools.add_command(please_cli.build.cmd, "build")
+cmd_tools.add_command(please_cli.check_cache.cmd, "check-cache")
+cmd_tools.add_command(please_cli.create_certs.cmd, "create-certs")
+cmd_tools.add_command(please_cli.deploy.cmd_HEROKU, "deploy:HEROKU")
+cmd_tools.add_command(please_cli.deploy.cmd_S3, "deploy:S3")
+cmd_tools.add_command(please_cli.deploy.cmd_TASKCLUSTER_HOOK, "deploy:TASKCLUSTER_HOOK")
+cmd_tools.add_command(please_cli.github.cmd, "github")
+cmd_tools.add_command(please_cli.maintanance.cmd_off, "maintanance:off")
+cmd_tools.add_command(please_cli.maintanance.cmd_on, "maintanance:on")
+cmd_tools.add_command(please_cli.nixify.cmd, "nixify")
+cmd_tools.add_command(please_cli.build_base_image.cmd, "build-base-image")
 
 
 if __name__ == "__main__":
