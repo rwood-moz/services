@@ -8,6 +8,7 @@ set -eu
 USE_NIX=0
 USE_DOCKER=0
 
+LANG=C
 
 case "`uname`" in
   Darwin)

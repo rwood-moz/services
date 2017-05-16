@@ -15,7 +15,6 @@ import cli_common.log
 log = cli_common.log.get_logger(__name__)
 
 
-
 def run(command, stream=False, handle_stream_line=None, **kwargs):
     """Run a command through subprocess
     """
@@ -35,13 +34,16 @@ def run(command, stream=False, handle_stream_line=None, **kwargs):
 
     if stream:
         _kwargs['bufsize'] = 1
-        _kwargs['universal_newlines'] = True
 
     log.debug('Running command', command=command_as_string, kwargs=_kwargs)
+
+    proc = subprocess.Popen(command, **_kwargs)
+
     with subprocess.Popen(command, **_kwargs) as proc:
         if stream:
             output = []
             for line in proc.stdout:
+                line = line.decode('utf-8', 'ignore')
                 line = line.rstrip('\n')
                 log.debug(line)
                 output.append(line)

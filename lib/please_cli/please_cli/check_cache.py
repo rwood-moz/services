@@ -55,7 +55,8 @@ def cmd(app, cache_url, nix_instantiate, indent=0):
     indent = ' ' * indent
 
     click.echo('{} => Calculating `{}` hash ... '.format(indent, app), nl=False)
-    with click_spinner.spinner():
+    if True:
+    #with click_spinner.spinner():
         command = [
             nix_instantiate,
             os.path.join(please_cli.config.ROOT_DIR, 'nix/default.nix'),
