@@ -156,8 +156,7 @@ def cmd(docker_username, docker_password, docker, docker_repo, docker_tag):
         please_cli.utils.check_result(result, output)
     finally:
         if os.path.exists(docker_file):
-            pass
-            #os.unlink(docker_file)
+            os.unlink(docker_file)
 
 
 if __name__ == "__main__":

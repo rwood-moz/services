@@ -13,7 +13,7 @@ tasks:
       owner: "{{ event.head.user.email }}"
       source: "https://github.com/mozilla-releng/services/tree/taskcluster-rework"
     routes:
-      - index.project.releng.services.requests.{{ event.head.repo.branch }}.by-timestamp."{{ '0 days' | $fromNow }}"
+      - index.project.releng.services.requests.{{ event.head.repo.branch }}.by-timestamp."{{ timestamp }}"
       - index.project.releng.services.requests.{{ event.head.repo.branch }}.by-revision.{{ event.head.sha }}
     scopes:
       - secrets:get:repo:github.com/mozilla-releng/services:branch:taskcluster-rework
@@ -31,7 +31,7 @@ tasks:
     workerType: "{{ taskcluster.docker.workerType }}"
     payload:
       maxRunTime: 7200  # seconds (i.e. two hours)
-      image: "garbas/mozilla-releng-services:base-latest"
+      image: "mozillareleng/services:base-latest"
       features:
         taskclusterProxy: true
       command:
