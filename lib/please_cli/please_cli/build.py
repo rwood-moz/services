@@ -109,9 +109,12 @@ def cmd(app,
             command,
             stream=True,
             stderr=subprocess.STDOUT,
-            ask_for_details=interactive,
         )
-    please_cli.utils.check_result(result, output)
+    please_cli.utils.check_result(
+        result,
+        output,
+        ask_for_details=interactive,
+    )
 
     if cache_bucket:
         tmp_cache_dir = os.path.join(please_cli.config.TMP_DIR, 'cache')
@@ -135,9 +138,12 @@ def cmd(app,
                 command,
                 stream=True,
                 stderr=subprocess.STDOUT,
-                ask_for_details=interactive,
             )
-        please_cli.utils.check_result(result, output)
+        please_cli.utils.check_result(
+            result,
+            output,
+            ask_for_details=interactive,
+        )
 
         os.environ['AWS_ACCESS_KEY_ID'] = AWS_ACCESS_KEY_ID
         os.environ['AWS_SECRET_ACCESS_KEY'] = AWS_SECRET_ACCESS_KEY
