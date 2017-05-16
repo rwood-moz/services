@@ -68,7 +68,7 @@ APPS = {
             'postgresql',
         ],
         'deploy': 'HEROKU',
-        'deploy_option': {
+        'deploy_options': {
             'staging': {
                 'heroku_app': 'releng-staging-archiver',
                 'url': 'https://archiver.staging.mozilla-releng.net',
@@ -92,7 +92,7 @@ APPS = {
             'postgresql',
         ],
         'deploy': 'HEROKU',
-        'deploy_option': {
+        'deploy_options': {
             'staging': {
                 'heroku_app': 'releng-staging-clobberer',
                 'url': 'https://clobberer.staging.mozilla-releng.net',
@@ -110,7 +110,7 @@ APPS = {
             'port': 7000,
         },
         'deploy': 'S3',
-        'deploy_option': {
+        'deploy_options': {
             'staging': {
                 's3_bucket': 'releng-staging-docs',
                 'url': 'https://docs.staging.mozilla-releng.net',
@@ -135,7 +135,7 @@ APPS = {
             'releng-archiver',
         ],
         'deploy': 'S3',
-        'deploy_option': {
+        'deploy_options': {
             'staging': {
                 's3_bucket': 'releng-staging-frontend',
                 'url': 'https://staging.mozilla-releng.net',
@@ -165,7 +165,7 @@ APPS = {
             'postgresql',
         ],
         'deploy': 'HEROKU',
-        'deploy_option': {
+        'deploy_options': {
             'staging': {
                 'heroku_app': 'releng-staging-mapper',
                 'url': 'https://mapper.staging.mozilla-releng.net',
@@ -189,7 +189,7 @@ APPS = {
             'postgresql',
         ],
         'deploy': 'HEROKU',
-        'deploy_option': {
+        'deploy_options': {
             'staging': {
                 'heroku_app': 'releng-staging-tooltool',
                 'url': 'https://tooltool.staging.mozilla-releng.net',
@@ -213,7 +213,7 @@ APPS = {
             'postgresql',
         ],
         'deploy': 'HEROKU',
-        'deploy_option': {
+        'deploy_options': {
             'staging': {
                 'heroku_app': 'releng-staging-treestatus',
                 'url': 'https://treestatus.staging.mozilla-releng.net',
@@ -224,8 +224,20 @@ APPS = {
             },
         },
     },
-    # TODO: shipit_bot_uplift
-    # TODO: shipit_code_coverage
+    'shipit-bot-uplift': {
+        'checks': [
+            ('Checking code quality', 'flake8'),
+            ('Running tests', 'pytest tests/'),
+        ],
+        'deploy': 'TASKCLUSTER_HOOK',
+    },
+    'shipit-code-coverage': {
+        'checks': [
+            ('Checking code quality', 'flake8'),
+            ('Running tests', 'pytest tests/'),
+        ],
+        'deploy': 'TASKCLUSTER_HOOK',
+    },
     'shipit-frontend': {
         'run': 'ELM',
         'run_options': {
@@ -238,12 +250,12 @@ APPS = {
             'uplift',
         ],
         'deploy': 'S3',
-        'deploy_option': {
+        'deploy_options': {
             'staging': {
                 's3_bucket': 'shipit-staging-frontend',
                 'url': 'https://shipit.staging.mozilla-releng.net',
                 'envs': {
-                    'WEBPACK_BUGZILLA_URL': 'https://bugzilla.mozilla.org',
+                    'bugzilla-url': 'https://bugzilla.mozilla.org',
                 },
                 'csp': [
                     'https://auth.taskcluster.net',
@@ -254,7 +266,7 @@ APPS = {
                 's3_bucket': 'shipit-production-frontend',
                 'url': 'https://shipit.mozilla-releng.net',
                 'envs': {
-                    'WEBPACK_BUGZILLA_URL': 'https://bugzilla.mozilla.org',
+                    'bugzilla-url': 'https://bugzilla.mozilla.org',
                 },
                 'csp': [
                     'https://auth.taskcluster.net',
@@ -276,7 +288,7 @@ APPS = {
             'postgresql',
         ],
         'deploy': 'HEROKU',
-        'deploy_option': {
+        'deploy_options': {
             'staging': {
                 'heroku_app': 'shipit-staging-pipeline',
                 'url': 'https://pipeline.shipit.staging.mozilla-releng.net',
@@ -287,8 +299,20 @@ APPS = {
             },
         },
     },
-    # TODO: shipit_pulse_listener
-    # TODO: shipit_risk_assessment
+    'shipit-pulse-listener': {
+        'checks': [
+            ('Checking code quality', 'flake8'),
+            ('Running tests', 'pytest tests/'),
+        ],
+        'deploy': 'TASKCLUSTER_HOOK',
+    },
+    'shipit-risk-assessment': {
+        'checks': [
+            ('Checking code quality', 'flake8'),
+            ('Running tests', 'pytest tests/'),
+        ],
+        'deploy': 'TASKCLUSTER_HOOK',
+    },
     'shipit-signoff': {
         'checks': [
             ('Checking code quality', 'flake8'),
@@ -302,7 +326,7 @@ APPS = {
             'postgresql',
         ],
         'deploy': 'HEROKU',
-        'deploy_option': {
+        'deploy_options': {
             'staging': {
                 'heroku_app': 'shipit-staging-signoff',
                 'url': 'https://signoff.shipit.staging.mozilla-releng.net',
@@ -313,7 +337,13 @@ APPS = {
             },
         },
     },
-    # TODO: shipit_static_analysis
+    'shipit-static-analysis': {
+        'checks': [
+            ('Checking code quality', 'flake8'),
+            ('Running tests', 'pytest tests/'),
+        ],
+        'deploy': 'TASKCLUSTER_HOOK',
+    },
     'shipit-taskcluster': {
         'checks': [
             ('Checking code quality', 'flake8'),
@@ -327,7 +357,7 @@ APPS = {
             'postgresql',
         ],
         'deploy': 'HEROKU',
-        'deploy_option': {
+        'deploy_options': {
             'staging': {
                 'heroku_app': 'shipit-staging-taskcluster',
                 'url': 'https://taskcluster.shipit.staging.mozilla-releng.net',
@@ -351,7 +381,7 @@ APPS = {
             'postgresql',
         ],
         'deploy': 'HEROKU',
-        'deploy_option': {
+        'deploy_options': {
             'staging': {
                 'heroku_app': 'shipit-staging-dashboard',
                 'url': 'https://uplift.shipit.staging.mozilla-releng.net',

@@ -4,20 +4,21 @@
 
 from __future__ import absolute_import
 
-import awscli
-import click
 import io
 import os
+import shutil
+import tempfile
+
+import awscli
+import click
+import click_spinner
 import push.image
 import push.registry
-import shutil
-import taskcluster
-import tempfile
 
 import cli_common
 import please_cli.config
 import please_cli.build
-
+import please_cli.utils
 
 
 @click.command()
@@ -26,18 +27,25 @@ import please_cli.build
     required=True,
     type=click.Choice(please_cli.config.APPS),
     )
-@click.argument(
-    's3_bucket',
+@click.option(
+    '--s3-bucket',
     required=True,
+    type=str,
+    )
+@click.option(
+    '--extra-attribute',
+    default="",
     )
 @click.option(
     '--csp',
     required=False,
+    multiple=True,
     default=None,
     )
 @click.option(
-    '--flags',
+    '--env',
     required=False,
+    multiple=True,
     default=None,
     )
 @click.option(
@@ -70,8 +78,9 @@ import please_cli.build
 def cmd_S3(ctx,
            app,
            s3_bucket,
+           extra_attribute,
            csp,
-           flags,
+           env,
            nix_build,
            nix_push,
            taskcluster_secrets,
@@ -88,13 +97,13 @@ def cmd_S3(ctx,
     secrets_tool = taskcluster.get_service('secrets')
     secrets = secrets_tool.get(taskcluster_secrets)['secret']
 
-    # TODO: we need to change this
     AWS_ACCESS_KEY_ID = secrets['DEPLOY_S3_ACCESS_KEY_ID']
     AWS_SECRET_ACCESS_KEY = secrets['DEPLOY_S3_SECRET_ACCESS_KEY']
 
     # 1. build app (but only pull from cache)
     ctx.invoke(please_cli.build.cmd,
                app=app,
+               extra_attribute=extra_attribute,
                nix_build=nix_build,
                nix_push=nix_push,
                taskcluster_secrets=taskcluster_secrets,
@@ -107,48 +116,58 @@ def cmd_S3(ctx,
     ))
 
     # 2. create temporary copy of app
-    if not os.path.exists(please_cli.config.TMP_DIR):
-        os.makedirs(please_cli.config.TMP_DIR)
-    tmp_dir = tempfile.mkdtemp(
-        prefix='copy-of-result-{}-'.format(app),
-        dir=please_cli.config.TMP_DIR,
-    )
-    shutil.rmtree(tmp_dir)
-    shutil.copytree(app_path, tmp_dir, copy_function=shutil.copy)
+    click.echo(' => Copying build artifacs to temporary location ... ', nl=False)
+    with click_spinner.spinner():
+        if not os.path.exists(please_cli.config.TMP_DIR):
+            os.makedirs(please_cli.config.TMP_DIR)
+        tmp_dir = tempfile.mkdtemp(
+            prefix='copy-of-result-{}-'.format(app),
+            dir=please_cli.config.TMP_DIR,
+        )
+        shutil.rmtree(tmp_dir)
+        shutil.copytree(app_path, tmp_dir, copy_function=shutil.copy)
+    please_cli.utils.check_result(0, '')
 
     # 3. apply csp and flags to index.html
-    index_html_file = os.path.join(tmp_dir, 'index.html')
-    with io.open(index_html_file, 'r', encoding='utf-8') as f:
-        index_html = f.read()
 
-    if csp:
-        index_html = index_html.replace(
-            'font-src \'self\';',
-            'font-src \'self\'; connect-src {};'.format(csp),
-        )
-    if flags:
-        index_html = index_html.replace(
-            '<body',
-            '<body ' + flags,
-        )
+    click.echo(' => Applying CSP and environment flags to index.html ... ', nl=False)
+    with click_spinner.spinner():
+        index_html_file = os.path.join(tmp_dir, 'index.html')
+        with io.open(index_html_file, 'r', encoding='utf-8') as f:
+            index_html = f.read()
 
-    os.chmod(index_html_file, 755)
-    with io.open(index_html_file, 'w', encoding='utf-8') as f:
-        f.write(index_html)
+        if csp:
+            index_html = index_html.replace(
+                'font-src \'self\';',
+                'font-src \'self\'; connect-src {};'.format(' '.join(csp)),
+            )
+        if env:
+            index_html = index_html.replace(
+                '<body',
+                '<body ' + (' '.join(['data-' + i for i in env])),
+            )
+
+        os.chmod(index_html_file, 755)
+        with io.open(index_html_file, 'w', encoding='utf-8') as f:
+            f.write(index_html)
+    please_cli.utils.check_result(0, '')
 
     # 4. sync to S3
-    os.environ['AWS_ACCESS_KEY_ID'] = AWS_ACCESS_KEY_ID
-    os.environ['AWS_SECRET_ACCESS_KEY'] = AWS_SECRET_ACCESS_KEY
-    aws = awscli.clidriver.create_clidriver().main
-    aws([
-        's3',
-        'sync',
-        '--delete',
-        '--acl', 'public-read',
-        tmp_dir,
-        's3://' + s3_bucket,
-    ])
-
+    click.echo(' => Syncing to S3  ... ', nl=False)
+    with click_spinner.spinner():
+        os.environ['AWS_ACCESS_KEY_ID'] = AWS_ACCESS_KEY_ID
+        os.environ['AWS_SECRET_ACCESS_KEY'] = AWS_SECRET_ACCESS_KEY
+        aws = awscli.clidriver.create_clidriver().main
+        aws([
+            's3',
+            'sync',
+            '--quiet',
+            '--delete',
+            '--acl', 'public-read',
+            tmp_dir,
+            's3://' + s3_bucket,
+        ])
+    please_cli.utils.check_result(0, '')
 
 
 @click.command()
@@ -157,9 +176,13 @@ def cmd_S3(ctx,
     required=True,
     type=click.Choice(please_cli.config.APPS),
     )
-@click.argument(
-    'heroku_app',
+@click.option(
+    '--heroku-app',
     required=True,
+    )
+@click.option(
+    '--extra-attribute',
+    default="",
     )
 @click.option(
     '--nix-build',
@@ -191,6 +214,7 @@ def cmd_S3(ctx,
 def cmd_HEROKU(ctx,
                app,
                heroku_app,
+               extra_attribute,
                nix_build,
                nix_push,
                taskcluster_secrets,
@@ -210,6 +234,7 @@ def cmd_HEROKU(ctx,
 
     ctx.invoke(please_cli.build.cmd,
                app=app,
+               extra_attribute=extra_attribute,
                nix_build=nix_build,
                nix_push=nix_push,
                taskcluster_secrets=taskcluster_secrets,
@@ -222,14 +247,17 @@ def cmd_HEROKU(ctx,
         "result-" + app,
     ))
 
-    push.registry.push(
-        push.image.spec(app_path),
-        "https://registry.heroku.com",
-        HEROKU_USERNAME,
-        HEROKU_PASSWORD,
-        heroku_app + "/web",
-        "latest",
-    )
+    click.echo(' => Pushing {} to heroku ... '.format(app), nl=False)
+    with click_spinner.spinner():
+        push.registry.push(
+            push.image.spec(app_path),
+            "https://registry.heroku.com",
+            HEROKU_USERNAME,
+            HEROKU_PASSWORD,
+            heroku_app + "/web",
+            "latest",
+        )
+    please_cli.utils.check_result(0, '')
 
 
 @click.command()
@@ -273,7 +301,9 @@ def cmd_TASKCLUSTER_HOOK(ctx,
                          taskcluster_client_id,
                          taskcluster_access_token,
                          ):
+
     click.echo("TODO")
+
     # taskcluster-hooks.json: require-APP require-BRANCH nix
     # 	@nix-build nix/taskcluster_hooks.nix \
     # 		--argstr app "$(APP)" \

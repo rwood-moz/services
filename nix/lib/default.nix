@@ -458,6 +458,11 @@ in rec {
 
         passthru = {
 
+          deploy = {
+            staging = self;
+            production = self;
+          };
+
           src_path =
             if src_path != null
               then src_path
@@ -643,6 +648,12 @@ in rec {
     }:
     let
 
+      self_docker = mkDocker {
+        inherit name version;
+        contents = [ busybox self ] ++ dockerContents;
+        config = dockerConfig;
+      };
+
       self = python.mkDerivation {
 
         namePrefix = "";
@@ -737,10 +748,9 @@ in rec {
                               ++ optional inProduction "production"
                 );
 
-          deploy = mkDocker {
-            inherit name version;
-            contents = [ busybox self ] ++ dockerContents;
-            config = dockerConfig;
+          deploy = {
+            staging = self_docker;
+            production = self_docker;
           };
 
         } // passthru;

@@ -10,24 +10,15 @@ import subprocess
 import awscli.clidriver
 import click
 import click_spinner
-import colorama
 
 import cli_common.log
 import cli_common.taskcluster
 import cli_common.command
-
 import please_cli.config
+import please_cli.utils
 
 
 log = cli_common.log.get_logger(__name__)
-
-
-def check_result(returncode):
-    if returncode == 0:
-        click.secho('DONE', fg='green')
-    else:
-        click.secho('ERROR', fg='red')
-        raise click.ClickException('Please consult the logs for error.')
 
 
 @click.command()
@@ -37,8 +28,8 @@ def check_result(returncode):
     type=click.Choice(please_cli.config.APPS),
     )
 @click.option(
-    '--to-deploy',
-    is_flag=True,
+    '--extra-attribute',
+    default="",
     )
 @click.option(
     '--nix-build',
@@ -72,7 +63,7 @@ def check_result(returncode):
     required=False,
     )
 def cmd(app,
-        to_deploy,
+        extra_attribute,
         nix_build,
         nix_push,
         cache_bucket,
@@ -103,18 +94,18 @@ def cmd(app,
     command = [
         nix_build,
         please_cli.config.ROOT_DIR + '/nix/default.nix',
-        '-A', app + (to_deploy and '.deploy' or ''),
+        '-A', app + extra_attribute,
         '-o', please_cli.config.ROOT_DIR + '/result-' + app,
     ]
 
-    click.echo('Building {} ... '.format(app), nl=False)
+    click.echo(' => Building {} application ... '.format(app), nl=False)
     with click_spinner.spinner():
         result, output, error = cli_common.command.run(
             command,
             stream=True,
             stderr=subprocess.STDOUT,
         )
-    check_result(result)
+    please_cli.utils.check_result(result, output)
 
     if cache_bucket:
         tmp_cache_dir = os.path.join(please_cli.config.TMP_DIR, 'cache')
@@ -132,19 +123,19 @@ def cmd(app,
             '--dest', tmp_cache_dir,
             '--force', outputs,
         ]
-        click.echo('Building cache ... '.format(app), nl=False)
+        click.echo(' => Creating cache artifacts for {} application... '.format(app), nl=False)
         with click_spinner.spinner():
-            result, output, error =  cli_common.command.run(
+            result, output, error = cli_common.command.run(
                 command,
                 stream=True,
                 stderr=subprocess.STDOUT,
             )
-        check_result(result)
+        please_cli.utils.check_result(result, output)
 
         os.environ['AWS_ACCESS_KEY_ID'] = AWS_ACCESS_KEY_ID
         os.environ['AWS_SECRET_ACCESS_KEY'] = AWS_SECRET_ACCESS_KEY
         aws = awscli.clidriver.create_clidriver().main
-        click.echo('Pushing cache to S3 ... '.format(app), nl=False)
+        click.echo(' => Pushing cache artifacts of {} to S3 ... '.format(app), nl=False)
         with click_spinner.spinner():
             result = aws([
                 's3',
@@ -155,7 +146,7 @@ def cmd(app,
                 tmp_cache_dir,
                 's3://' + cache_bucket,
             ])
-        check_result(result)
+        please_cli.utils.check_result(result, output)
 
 
 if __name__ == "__main__":

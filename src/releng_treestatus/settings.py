@@ -57,12 +57,10 @@ PULSE_PASSWORD = os.environ.get('PULSE_PASSWORD')
 PULSE_VIRTUAL_HOST = os.environ.get('PULSE_VIRTUAL_HOST', '/')
 
 if os.environ.get('DEBUG') != '1':
-    
     if not PULSE_USER:
         raise Exception('PULSE_USER not provided.')
     if not PULSE_PASSWORD:
         raise Exception('PULSE_PASSWORD not provided.')
-
 
     PULSE_TREESTATUS_ENABLE = True
     PULSE_TREESTATUS_EXCHANGE = os.environ.get(

@@ -4,13 +4,36 @@
 
 from __future__ import absolute_import
 
-import shlex
 import click
-import subprocess
 import cli_common.log
 
 
-log = cli_common.log.get_logger('please-cli.utils')
+log = cli_common.log.get_logger(__name__)
+
+
+def check_result(returncode, output='', success_message='DONE',
+                 error_message='ERROR', raise_exception=True,
+                 ask_for_details=True):
+    if returncode == 0:
+        click.secho(success_message, fg='green')
+    else:
+        click.secho(error_message, fg='red')
+
+    if returncode != 0:
+        if ask_for_details:
+            show_details = click.confirm(
+                '    Show details?',
+                default=False,
+                abort=False,
+                prompt_suffix=' ',
+                show_default=True,
+                err=False,
+            )
+            if show_details:
+                click.echo_via_pager(output)
+        if raise_exception:
+            raise click.ClickException(
+                'Something went wrong, please look at the logs.')
 
 
 class ClickCustomCommand(click.Command):
@@ -40,7 +63,6 @@ class ClickCustomCommand(click.Command):
         if opts:
             with formatter.section('OPTIONS'):
                 formatter.write_dl(opts)
-
 
 
 class ClickCustomGroup(click.Group, ClickCustomCommand):

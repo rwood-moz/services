@@ -4,8 +4,6 @@
 
 from __future__ import absolute_import
 
-import sys
-
 import click
 import logbook
 import cli_common.log
@@ -69,7 +67,6 @@ Happy hacking!
 @click.pass_context
 def cmd(ctx, verbose, mozdef):
 
-
     # critical – for errors that lead to termination
     log_level = logbook.CRITICAL
 
@@ -117,9 +114,9 @@ cmd.add_command(cmd_more, "tools")
 cmd_more.add_command(please_cli.build.cmd, "build")
 cmd_more.add_command(please_cli.check_cache.cmd, "check-cache")
 cmd_more.add_command(please_cli.create_certs.cmd, "create-certs")
-cmd_more.add_command(please_cli.deploy.cmd_HEROKU, "deploy:heroku")
+cmd_more.add_command(please_cli.deploy.cmd_HEROKU, "deploy:HEROKU")
 cmd_more.add_command(please_cli.deploy.cmd_S3, "deploy:S3")
-cmd_more.add_command(please_cli.deploy.cmd_TASKCLUSTER_HOOK, "deploy:hook")
+cmd_more.add_command(please_cli.deploy.cmd_TASKCLUSTER_HOOK, "deploy:TASKCLUSTER_HOOK")
 cmd_more.add_command(please_cli.github.cmd, "github")
 cmd_more.add_command(please_cli.maintanance.cmd_off, "maintanance:off")
 cmd_more.add_command(please_cli.maintanance.cmd_on, "maintanance:on")

@@ -35,15 +35,13 @@ let
     tools = import ./tools/default.nix { inherit releng_pkgs; };
     gecko-env = import ./gecko_env.nix { inherit releng_pkgs; };
     elmPackages = pkgs.elmPackages.override { nodejs = pkgs."nodejs-6_x"; };
-    postgresql =
-      if pkgs.lib.inNixShell
-        then pkgs.stdenv.mkDerivation
-          { name = "${pkgs.postgresql.name}-env";
-            buildInputs = [ pkgs.postgresql95 ];
-            passthru.package = pkgs.postgresql95;
-          }
-        else
-          pkgs.postgresql95;
+
+    "postgresql" =
+      pkgs.stdenv.mkDerivation
+        { name = "${pkgs.postgresql.name}-env";
+          buildInputs = [ pkgs.postgresql95 ];
+          passthru.package = pkgs.postgresql95;
+        };
 
     "please-cli" = import ./../lib/please_cli { inherit releng_pkgs; };
     # TODO: backend_common_example = import ./../lib/backend_common/example { inherit releng_pkgs; };

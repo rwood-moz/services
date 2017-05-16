@@ -7,7 +7,6 @@ from __future__ import absolute_import
 import structlog
 import logbook
 import structlog.exceptions
-import mozdef_client
 
 
 class UnstructuredRenderer(structlog.processors.KeyValueRenderer):
@@ -27,6 +26,8 @@ class UnstructuredRenderer(structlog.processors.KeyValueRenderer):
 
 
 def mozdef_sender(target):
+    import mozdef_client
+
     sev_map = {
         'critical': mozdef_client.MozDefEvent.SEVERITY_CRITICAL,
         'error': mozdef_client.MozDefEvent.SEVERITY_ERROR,
@@ -61,7 +62,7 @@ def init_app(app):
     level = logbook.ERROR
     if app.debug:
         level = logbook.DEBUG
-    init_logger(mozdef=mozdef)
+    init_logger(level=level, mozdef=mozdef)
 
 
 def init_logger(level=logbook.ERROR, handler=None, mozdef=None):

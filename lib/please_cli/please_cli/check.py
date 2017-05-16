@@ -4,8 +4,6 @@
 
 from __future__ import absolute_import
 
-import os
-
 import click
 import click_spinner
 
@@ -24,20 +22,6 @@ APPLICATIONS:
 '''.format(
     apps=''.join([' - ' + i + '\n' for i in please_cli.config.APPS]),
 )
-
-
-def check_result(returncode, output):
-    if returncode == 0:
-        click.secho('SUCCESS', fg='green')
-    else:
-        click.secho('ERROR', fg='red')
-
-    if returncode != 0:
-        show_details = click.confirm(
-            'Show details?', default=False, abort=False, prompt_suffix=' ',
-            show_default=True, err=False)
-        if show_details:
-            click.echo_via_pager(output)
 
 
 @click.command(
@@ -66,7 +50,6 @@ def cmd(ctx, app, nix_shell):
     if not checks:
         raise click.ClickException('No checks found for `{}` application.'.format(app))
 
-    click.echo('Checking:')
     for check_title, check_command in checks:
         click.echo(' => {}: '.format(check_title), nl=False)
         with click_spinner.spinner():
@@ -76,9 +59,8 @@ def cmd(ctx, app, nix_shell):
                                                    command=check_command,
                                                    nix_shell=nix_shell,
                                                    )
-        check_result(returncode, output)
+        please_cli.utils.check_result(returncode, output, raise_exception=False)
 
 
 if __name__ == "__main__":
     cmd()
-

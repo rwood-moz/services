@@ -28,21 +28,6 @@ APPLICATIONS:
 )
 
 
-def check_result(returncode, output, success_message='DONE'):
-    if returncode == 0:
-        click.secho(success_message, fg='green')
-    else:
-        click.secho('ERROR', fg='red')
-
-    if returncode != 0:
-        show_details = click.confirm(
-            '    Show details?', default=False, abort=False, prompt_suffix=' ',
-            show_default=True, err=False)
-        if show_details:
-            click.echo_via_pager(output)
-        raise click.ClickException('Something went wrong, please look at the logs.')
-
-
 @click.command(
     cls=please_cli.utils.ClickCustomCommand,
     short_help="Run APPLICATION in development mode.",
@@ -123,7 +108,7 @@ def cmd(ctx, app, quiet, nix_shell):
                 'in a separate terminal.'
             )
 
-        check_result(result, output)
+        please_cli.utils.check_result(result, output)
 
         if not database_exists:
             click.echo(' => Creating `{}` database ` ... '.format(dbname), nl=False)
@@ -139,7 +124,7 @@ def cmd(ctx, app, quiet, nix_shell):
                     ]),
                     nix_shell=nix_shell,
                     )
-            check_result(result, output)
+            please_cli.utils.check_result(result, output)
 
         os.environ['DATABASE_URL'] = 'postgresql://{}:{}/{}'.format(
             pg_host, pg_port, dbname
@@ -156,7 +141,7 @@ def cmd(ctx, app, quiet, nix_shell):
                                                    command='initdb -D {} --auth=trust'.format(data_dir),
                                                    nix_shell=nix_shell,
                                                    )
-            check_result(result, output)
+            please_cli.utils.check_result(result, output)
 
         schema = ''
         command = [

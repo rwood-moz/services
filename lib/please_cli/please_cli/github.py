@@ -4,13 +4,21 @@
 
 from __future__ import absolute_import
 
-import cli_common.taskcluster
-import click
 import datetime
 import json
-import os
-import please_cli.config
+
+import click
+import click_spinner
 import slugid
+
+import cli_common.taskcluster
+import please_cli.config
+
+
+DEPLOYABLE_APPS = {}
+for app_name, app_config in please_cli.config.APPS.items():
+    if 'deploy' in app_config:
+        DEPLOYABLE_APPS[app_name] = app_config
 
 
 def get_build_task(index,
@@ -21,24 +29,18 @@ def get_build_task(index,
                    github_branch,
                    github_user_email,
                    ):
-    command = (' && '.join([
-      'cd /tmp',
-      'wget https://github.com/mozilla-releng/services/archive/{github_commit}.tar.gz',  # noqa
-      'tar zxf {github_commit}.tar.gz',
-      'cd services-{github_commit}',
-      'env',
-      './please -D build'
-        ' --cache-bucket="releng-cache"'
-        ' --taskcluster-secrets=repo:github.com/mozilla-releng/services:branch:{github_branch}'  # noqa
-        ' {app}'
-    ])).format(
-        github_branch=github_branch,
-        github_commit=github_commit,
-        app=app,
-    )
+    command = ' '.join([
+        './please',
+        '-D',
+        'tools', 'build',
+        app,
+        '--extra-attribute=".deploy.{}"'.format(github_branch),
+        '--cache-bucket="releng-cache"',
+        '--taskcluster-secrets=repo:github.com/mozilla-releng/services:branch:' + github_branch,
+    ])
     return get_task(
         task_group_id,
-        [ parent_task ],
+        [parent_task],
         github_commit,
         github_branch,
         command,
@@ -57,7 +59,6 @@ def get_build_task(index,
 
 def get_deploy_task(index,
                     app,
-                    app_config,
                     task_group_id,
                     parent_task,
                     github_commit,
@@ -65,52 +66,80 @@ def get_deploy_task(index,
                     github_user_email,
                     ):
 
-    # XXX: we need to offload this to 
-    if app in ['releng-frontend', 'releng-docs', 'shipit-frontend']:
-        please_command = './please -D deploy:S3 "{app}" "{s3_bucket}" --csp="{csp}" --flags="${flags}" --taskcluster-secrets="{taskcluster_secrets}"'.format(
-            app=app,
-            s3_bucket=app_config['s3_bucket'],
-            csp=' '.join(app_config.get('csp', [])),
+    app_config = please_cli.config.APPS.get(app, {})
+    deploy_type = app_config.get('deploy')
+    deploy_options = app_config.get('deploy_options', {}).get(github_branch, {})
+
+    if deploy_type == 'S3':
+        app_csp = []
+        for url in deploy_options.get('csp', []):
+            app_csp.append('--csp="{}"'.format(url))
+        for require in app_config.get('requires', []):
+            require_config = please_cli.config.APPS.get(require, {})
+            require_deploy_options = require_config.get('deploy_options', {}).get(github_branch, {})
+            require_url = require_deploy_options.get('url')
+            if require_url:
+                app_csp.append('--csp="{}"'.format(require_url))
+
+        app_envs = []
+        for env_name, env_value in deploy_options.get('envs', {}).items():
+            app_csp.append('--env="{}: {}"'.format(env_name, env_value))
+        for require in app_config.get('requires', []):
+            require_config = please_cli.config.APPS.get(require, {})
+            require_deploy_options = require_config.get('deploy_options', {}).get(github_branch, {})
+            require_url = require_deploy_options.get('url')
+            if require_url:
+                env_name = '-'.join(require.split('-')[1:])
+                app_csp.append('--env="{}-url: {}"'.format(env_name, require_url))
+                
+
             flags=' '.join([
                 '--data-{}="{}"'.format(k, v)
                 for k, v in app_config.get('flags', dict()).items()
             ]),
-            taskcluster_secrets='repo:github.com/mozilla-releng/services:branch:' + github_branch,
-        )
+
+        command = ' '.join([
+            './please',
+            '-D', 'deploy:S3',
+            app,
+            s3_bucket,
+            '--taskcluster-secrets=repo:github.com/mozilla-releng/services:branch:' + github_branch,
+        ] + app_csp + app_env)
+
+    elif deploy_type == 'HEROKU':
+        command = ' '.join([
+            './please',
+            '-D',
+            'deploy:HEROKU',
+            app,
+            deploy_options['heroku_app'],
+            '--taskcluster-secrets=repo:github.com/mozilla-releng/services:branch:' + github_branch,
+        ])
+
+    elif deploy_type == 'TASKCLUSTER_HOOK':
+        import ipdb
+        ipdb.set_trace()
+
     else:
-        please_command = './please -D deploy:heroku "{app}" "{heroku_app}" --taskcluster-secrets="{taskcluster_secrets}"'.format(
+        raise click.ClickException('Unknown deployment type `{}` for application `{}`'.format(deploy_type, app))
+
+    metadata = {
+        'name': '3.{index:02}. Deploying {app}'.format(
+            index=index + 1,
             app=app,
-            heroku_app=app_config['heroku_app'],
-            taskcluster_secrets='repo:github.com/mozilla-releng/services:branch:' + github_branch,
-        )
+        ),
+        'description': '',
+        'owner': github_user_email,
+        'source': 'https://github.com/mozilla-releng/services/tree/' + github_branch,
 
-    command = (' && '.join([
-      'cd /tmp',
-      'wget https://github.com/mozilla-releng/services/archive/{github_commit}.tar.gz',  # noqa
-      'tar zxf {github_commit}.tar.gz',
-      'cd services-{github_commit}',
-      'env',
-       please_command
-    ])).format(
-        github_commit=github_commit,
-    )
-    return get_task(
-        task_group_id,
-        [ parent_task ],
-        github_commit,
-        github_branch,
-        command,
-        {
-            'name': '3.{index:02}. Deploying {app}'.format(
-                index=index + 1,
-                app=app,
-            ),
-            'description': '',
-            'owner': github_user_email,
-            'source': 'https://github.com/mozilla-releng/services/tree/' + github_branch,
-
-        },
-    )
+    }
+    return get_task(task_group_id,
+                    [ parent_task ],
+                    github_commit,
+                    github_branch,
+                    command,
+                    metadata,
+                    )
 
 
 def get_task(task_group_id,
@@ -119,9 +148,21 @@ def get_task(task_group_id,
              github_branch,
              command,
              metadata,
+             scopes=[],
              deadline=dict(hours=5),
              ):
     now = datetime.datetime.utcnow()
+    command = (' && '.join([
+      'cd /tmp',
+      'wget https://github.com/mozilla-releng/services/archive/{github_commit}.tar.gz',  # noqa
+      'tar zxf {github_commit}.tar.gz',
+      'cd services-{github_commit}',
+      'env',
+      command
+    ])).format(
+        github_branch=github_branch,
+        github_commit=github_commit,
+    )
     return {
         'provisionerId': 'aws-provisioner-v1',
         'workerType': 'releng-task',
@@ -132,9 +173,9 @@ def get_task(task_group_id,
         'deadline': now + datetime.timedelta(**deadline),
         'scopes': [
           'secrets:get:repo:github.com/mozilla-releng/services:branch:' + github_branch,
-        ],
+        ] + scopes,
         'payload': {
-            'maxRunTime': 7200,  # seconds (i.e. two hours)
+            'maxRunTime': 60 * 60 * 2,  # 2 hourse in seconds
             'image': 'garbas/mozilla-releng-services:base-latest',
             'features': {
                 'taskclusterProxy': True,
@@ -196,7 +237,9 @@ def get_task(task_group_id,
     '--dry-run',
     is_flag=True,
     )
-def cmd(github_commit,
+@click.pass_context
+def cmd(ctx,
+        github_commit,
         github_branch,
         github_user_email,
         task_id,
@@ -213,54 +256,54 @@ def cmd(github_commit,
         taskcluster_client_id,
         taskcluster_access_token,
     )
-    taskcluster_secrets = taskcluster.get_service('secrets')
     taskcluster_queue = taskcluster.get_service('queue')
-    taskcluster_index = taskcluster.get_service('index')
 
-    click.echo("1/5: Retriving current taskGroupId")
+    click.echo(' => Retriving taskGroupId ... ', nl=False)
+    with click_spinner.spinner():
+        task = taskcluster_queue.task(task_id)
 
-    task = taskcluster_queue.task(task_id)
+    if 'taskGroupId' not in task:
+        please_cli.utils.check_result(1, 'taskGroupId does not exists in task: {}'.format(json.dumps(task)))
+
     task_group_id = task['taskGroupId']
+    please_cli.utils.check_result(0, '')
+    click.echo('    taskGroupId: ' + task_group_id)
 
-    click.echo("2/5: Retriving secrets")
-
-    secrets_id = 'repo:github.com/mozilla-releng/services:branch:' + github_branch  # noqa
-    secrets = taskcluster_secrets.get(secrets_id)['secret']
-
-    click.echo('3/5: Checking cache which application needs to be built and which deployed')
-
+    click.echo(' => Checking cache which application needs to be rebuilt')
     build_apps = []
     app_hashes = dict()
-    for app in please_cli.config.APPS:
-        click.echo(' => ' + app + ': ', nl=False) 
-        if dry_run:
-            app_exists_in_cache, app_hash = False, "EEEE"
-        else:
-            app_exists_in_cache, app_hash = please_cli.check_cache.app_exists(
-                app, cache_url, nix_instantiate)
+    for app in DEPLOYABLE_APPS:
+        # XXX: app_exists_in_cache, app_hash = False, ''
+        click.echo('     => ' + app)
+        app_exists_in_cache, app_hash = ctx.invoke(
+            please_cli.check_cache.cmd,
+            app=app,
+            cache_url=cache_url,
+            nix_instantiate=nix_instantiate,
+            indent=8,
+        )
         app_hashes[app] = app_hash
         if not app_exists_in_cache:
             build_apps.append(app)
-            click.echo('DOES NOT EXISTS!')
-        else:
-            click.echo('EXISTS!')
 
-    # calculate which apps we need to deploy
+    click.echo(' => Checking which application needs to be redeployed')
     deploy_apps = []
     if github_branch in please_cli.config.DEPLOYMENT_BRANCHES:
 
         # TODO: get status for our index branch
-        status = dict()
+        # status = dict()
+        # for now we will redeploy applications that were rebuild
+        status = app_hashes
 
-        for app in please_cli.config.APPS:
+        for app in DEPLOYABLE_APPS:
             app_hash = status.get(app)
 
             if app_hash == app_hashes[app]:
                 continue
 
             deploy_apps.append(app)
-        
-    click.echo('4/5: Creating taskcluster tasks definitions')
+
+    click.echo(' => Creating taskcluster tasks definitions')
     tasks = []
 
     # 1. build tasks
@@ -278,12 +321,12 @@ def cmd(github_commit,
         )
         tasks.append((app_uuid, build_tasks[app_uuid]))
 
-    if deploy_apps:
+    if False and deploy_apps:
 
         # 2. maintanance on task
         maintanance_on_uuid = slugid.nice().decode('utf-8')
         if len(build_tasks.keys()) == 0:
-            maintanance_on_dependencies = [ task_id ]
+            maintanance_on_dependencies = [task_id]
         else:
             maintanance_on_dependencies = [i for i in build_tasks.keys()]
         maintanance_on_command = (' && '.join([
@@ -367,7 +410,7 @@ def cmd(github_commit,
         maintanance_off_task['requires'] = 'all-resolved'
         tasks.append((maintanance_off_uuid, maintanance_off_task))
 
-    click.echo('5/5: Submitting taskcluster definitions to taskcluster')
+    click.echo(' => Submitting taskcluster definitions to taskcluster')
     if dry_run:
         tasks2 = {task_id: task for task_id, task in tasks}
         for task_id, task in tasks:

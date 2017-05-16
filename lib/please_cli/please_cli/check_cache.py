@@ -4,11 +4,21 @@
 
 from __future__ import absolute_import
 
+import os
+import subprocess
+
 import click
+import click_spinner
 import requests
+
+import cli_common.command
+import cli_common.log
 
 import please_cli.config
 import please_cli.utils
+
+
+log = cli_common.log.get_logger(__name__)
 
 
 class Derive:
@@ -18,24 +28,6 @@ class Derive:
     @property
     def nix_hash(self):
         return self._drv[0][0][1][11:43]
-
-
-def app_exists(app, cache_url, nix_instantiate):
-    code, output = please_cli.utils.run_command(
-        '{nix_instantiate} {ROOT_DIR}/nix/default.nix -A apps.{app}'.format(
-            nix_instantiate=nix_instantiate,
-            ROOT_DIR=please_cli.config.ROOT_DIR,
-            app=app,
-            ))
-
-    drv = output.split('\n')[-2].strip()
-
-    with open(drv) as f:
-        derivation = eval(f.read())
-
-    response = requests.get('%s/%s.narinfo' % (cache_url, derivation.nix_hash))
-
-    return response.status_code == 200, derivation.nix_hash
 
 
 @click.command()
@@ -56,15 +48,51 @@ def app_exists(app, cache_url, nix_instantiate):
     default='nix-instantiate',
     help='`nix-instantiate` command',
     )
-def cmd(app, cache_url, nix_instantiate):
+def cmd(app, cache_url, nix_instantiate, indent=0):
     """Command to check if application is already in cache.
     """
 
-    exists, app_hash =  app_exists(app, cache_url, nix_instantiate)
-    if exists:
-        click.echo('EXISTS: ' + app_hash)
-    else:
-        click.echo('DOES NOT EXISTS: ' + app_hash)
+    indent = ' ' * indent
+
+    click.echo('{} => Calculating `{}` hash ... '.format(indent, app), nl=False)
+    with click_spinner.spinner():
+        command = [
+            nix_instantiate,
+            os.path.join(please_cli.config.ROOT_DIR, 'nix/default.nix'),
+            '-A', app
+        ]
+        result, output, error = cli_common.command.run(
+            command,
+            stream=True,
+            stderr=subprocess.STDOUT,
+        )
+    please_cli.utils.check_result(result, output)
+
+    try:
+        drv = output.split('\n')[-1].strip()
+        with open(drv) as f:
+            derivation = eval(f.read())
+    except Exception as e:
+        log.exception(e)
+        raise click.ClickException('Something went wrong when reading derivation file for `{}` application.'.format(app))
+    click.echo('{}    Application hash: {}'.format(indent, derivation.nix_hash))
+
+    click.echo('{} => Checking cache if build artifacts exists for `{}` ... '.format(indent, app), nl=False)
+    with click_spinner.spinner():
+        response = requests.get(
+            '%s/%s.narinfo' % (cache_url, derivation.nix_hash),
+        )
+    app_exists = response.status_code == 200
+
+    please_cli.utils.check_result(
+        app_exists,
+        success_message='EXISTS',
+        error_message='NOT EXISTS',
+        raise_exception=False,
+        ask_for_details=False,
+    )
+
+    return app_exists, derivation.nix_hash
 
 
 if __name__ == "__main__":
