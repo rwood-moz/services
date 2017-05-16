@@ -62,6 +62,10 @@ log = cli_common.log.get_logger(__name__)
     default=None,
     required=False,
     )
+@click.option(
+    '--interactive/--no-interactive',
+    default=True,
+    )
 def cmd(app,
         extra_attribute,
         nix_build,
@@ -70,6 +74,7 @@ def cmd(app,
         taskcluster_secrets,
         taskcluster_client_id,
         taskcluster_access_token,
+        interactive,
         ):
 
     secrets = dict()
@@ -104,6 +109,7 @@ def cmd(app,
             command,
             stream=True,
             stderr=subprocess.STDOUT,
+            ask_for_details=interactive,
         )
     please_cli.utils.check_result(result, output)
 
@@ -129,6 +135,7 @@ def cmd(app,
                 command,
                 stream=True,
                 stderr=subprocess.STDOUT,
+                ask_for_details=interactive,
             )
         please_cli.utils.check_result(result, output)
 

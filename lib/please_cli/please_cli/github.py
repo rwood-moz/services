@@ -29,11 +29,15 @@ def get_build_task(index,
                    github_branch,
                    github_user_email,
                    ):
+    # XXX: remove when in production
+    if github_branch == 'taskcluster-rework':
+        github_branch = 'staging'
     command = ' '.join([
         './please', '-vvvvv', 'tools', 'build', app,
         '--extra-attribute=".deploy.{}"'.format(github_branch),
         '--cache-bucket="releng-cache"',
         '--taskcluster-secrets=repo:github.com/mozilla-releng/services:branch:' + github_branch,
+        '--no-interactive',
     ])
     return get_task(
         task_group_id,
