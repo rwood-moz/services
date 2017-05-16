@@ -48,26 +48,36 @@ class Derive:
     default='nix-instantiate',
     help='`nix-instantiate` command',
     )
-def cmd(app, cache_url, nix_instantiate, indent=0):
+def cmd(app, cache_url, nix_instantiate, indent=0, interactive=True):
     """Command to check if application is already in cache.
     """
 
     indent = ' ' * indent
 
     click.echo('{} => Calculating `{}` hash ... '.format(indent, app), nl=False)
-    if True:
-    #with click_spinner.spinner():
-        command = [
-            nix_instantiate,
-            os.path.join(please_cli.config.ROOT_DIR, 'nix/default.nix'),
-            '-A', app
-        ]
+    command = [
+        nix_instantiate,
+        os.path.join(please_cli.config.ROOT_DIR, 'nix/default.nix'),
+        '-A', app
+    ]
+    if interactive:
+        with click_spinner.spinner():
+            result, output, error = cli_common.command.run(
+                command,
+                stream=True,
+                stderr=subprocess.STDOUT,
+            )
+    else:
         result, output, error = cli_common.command.run(
             command,
             stream=True,
             stderr=subprocess.STDOUT,
         )
-    please_cli.utils.check_result(result, output)
+    please_cli.utils.check_result(
+        result,
+        output,
+        ask_for_details=interactive,
+    )
 
     try:
         drv = output.split('\n')[-1].strip()

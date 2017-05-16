@@ -37,4 +37,4 @@ tasks:
       command:
         - "/bin/bash"
         - "-c"
-        - "cd /tmp && wget https://github.com/mozilla-releng/services/archive/$GITHUB_HEAD_SHA.tar.gz && tar zxf $GITHUB_HEAD_SHA.tar.gz && cd services-$GITHUB_HEAD_SHA && env && ./please tools github"
+        - "cd /tmp && wget https://github.com/mozilla-releng/services/archive/$GITHUB_HEAD_SHA.tar.gz && tar zxf $GITHUB_HEAD_SHA.tar.gz && cd services-$GITHUB_HEAD_SHA && env && ./please -vvvvv tools github"

@@ -281,6 +281,7 @@ def cmd(ctx,
             cache_url=cache_url,
             nix_instantiate=nix_instantiate,
             indent=8,
+            interactive=False,
         )
         app_hashes[app] = app_hash
         if not app_exists_in_cache:

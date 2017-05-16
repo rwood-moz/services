@@ -13,7 +13,8 @@ log = cli_common.log.get_logger(__name__)
 
 def check_result(returncode, output='', success_message='DONE',
                  error_message='ERROR', raise_exception=True,
-                 ask_for_details=True):
+                 ask_for_details=True, show_details=True,
+                 ):
     if returncode == 0:
         click.secho(success_message, fg='green')
     else:
@@ -31,6 +32,9 @@ def check_result(returncode, output='', success_message='DONE',
             )
             if show_details:
                 click.echo_via_pager(output)
+        elif show_details and output:
+                click.echo(output)
+
         if raise_exception:
             raise click.ClickException(
                 'Something went wrong, please look at the logs.')
