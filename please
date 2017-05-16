@@ -8,6 +8,8 @@ set -eu
 USE_NIX=0
 USE_DOCKER=0
 
+LANGUAGE=C
+LC_ALL=C
 LANG=C
 
 case "`uname`" in

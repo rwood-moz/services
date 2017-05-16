@@ -748,6 +748,8 @@ in rec {
                               ++ optional inProduction "production"
                 );
 
+          docker = self_docker;
+
           deploy = {
             staging = self_docker;
             production = self_docker;

@@ -60,8 +60,7 @@ let
     let
       cacheKey = "shipit-static-analysis-" + branch;
       secretsKey = "repo:github.com/mozilla-releng/services:branch:" + branch;
-    in
-      mkTaskclusterHook {
+      hook = mkTaskclusterHook {
         name = "Shipit task aggregating code coverage data";
         owner = "mcastelluccio@mozilla.com";
         schedule = [ "0 0 0 * * *" ];  # every day
@@ -95,6 +94,8 @@ let
           };
         };
       };
+    in
+      releng_pkgs.pkgs.writeText "taskcluster-hook-${self.name}.json" (builtins.toJSON hook);
 
   self = mkPython {
     inherit python name dirname;

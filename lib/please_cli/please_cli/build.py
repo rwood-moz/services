@@ -96,11 +96,12 @@ def cmd(app,
                 'are not in Taskcluster secret (`{}`).'.format(taskcluster_secrets)
             ))
 
+    build_result = please_cli.config.TMP_DIR + '/result-build-' + app
     command = [
         nix_build,
         please_cli.config.ROOT_DIR + '/nix/default.nix',
         '-A', app + extra_attribute,
-        '-o', please_cli.config.ROOT_DIR + '/result-' + app,
+        '-o', build_result,
     ]
 
     click.echo(' => Building {} application ... '.format(app), nl=False)
@@ -118,19 +119,13 @@ def cmd(app,
 
     if cache_bucket:
         tmp_cache_dir = os.path.join(please_cli.config.TMP_DIR, 'cache')
-        outputs = ' '.join([
-            os.path.join(please_cli.config.ROOT_DIR, item)
-            for item in os.listdir(please_cli.config.ROOT_DIR)
-            if item.startswith('result-' + app)
-        ])
-
         if not os.path.exists(tmp_cache_dir):
             os.makedirs(tmp_cache_dir)
 
         command = [
             nix_push,
             '--dest', tmp_cache_dir,
-            '--force', outputs,
+            '--force', build_result,
         ]
         click.echo(' => Creating cache artifacts for {} application... '.format(app), nl=False)
         with click_spinner.spinner():
