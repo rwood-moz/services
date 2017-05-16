@@ -30,10 +30,7 @@ def get_build_task(index,
                    github_user_email,
                    ):
     command = ' '.join([
-        './please',
-        '-D',
-        'tools', 'build',
-        app,
+        './please', '-vvvvv', 'tools', 'build', app,
         '--extra-attribute=".deploy.{}"'.format(github_branch),
         '--cache-bucket="releng-cache"',
         '--taskcluster-secrets=repo:github.com/mozilla-releng/services:branch:' + github_branch,
@@ -99,20 +96,13 @@ def get_deploy_task(index,
             ]),
 
         command = ' '.join([
-            './please',
-            '-D', 'deploy:S3',
-            app,
-            s3_bucket,
+            './please', '-vvvvv', 'deploy:S3', app, s3_bucket,
             '--taskcluster-secrets=repo:github.com/mozilla-releng/services:branch:' + github_branch,
         ] + app_csp + app_env)
 
     elif deploy_type == 'HEROKU':
         command = ' '.join([
-            './please',
-            '-D',
-            'deploy:HEROKU',
-            app,
-            deploy_options['heroku_app'],
+            './please', '-vvvvv', 'deploy:HEROKU', app, deploy_options['heroku_app'],
             '--taskcluster-secrets=repo:github.com/mozilla-releng/services:branch:' + github_branch,
         ])
 
@@ -336,7 +326,7 @@ def cmd(ctx,
           'tar zxf {github_commit}.tar.gz',
           'cd services-{github_commit}',
           'env',
-          './please -D maintanance:on {apps}',
+          './please -vvvvv tools maintanance:on {apps}',
         ])).format(
             github_commit=github_commit,
             apps=' '.join(build_apps),
@@ -389,7 +379,7 @@ def cmd(ctx,
           'tar zxf {github_commit}.tar.gz',
           'cd services-{github_commit}',
           'env',
-          './please -D maintanance:off {apps}',
+          './please -vvvvv tools maintanance:off {apps}',
         ])).format(
             github_commit=github_commit,
             apps=' '.join(build_apps),
