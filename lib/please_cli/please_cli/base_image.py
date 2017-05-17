@@ -35,7 +35,8 @@ MAINTAINER rgarbas@mozilla.com
 RUN apt-get -q update \
  && apt-get -q --yes install bash wget bzip2 tar locales \
  && apt-get clean \
- && locale-gen en_US.UTF-8
+ && echo "en_US.UTF-8 UTF-8" >> /etc/locale.gen \
+ && locale-gen
 
 #
 # installing Nix in multiuser mode
@@ -78,8 +79,6 @@ ENV \
  ENV=/etc/profile \
  PATH=/root/.nix-profile/bin:/root/.nix-profile/sbin:/bin:/sbin:/usr/bin:/usr/sbin \
  GIT_SSL_CAINFO=/root/.nix-profile/etc/ssl/certs/ca-bundle.crt \
- LANGUAGE=en_US.UTF-8 \
- LC_ALL=en_US.UTF-8 \
  LANG=en_US.UTF-8 \
  NIX_SSL_CERT_FILE=/root/.nix-profile/etc/ssl/certs/ca-bundle.crt \
  NIX_PATH="nixpkgs={nixpkgs_url}"
@@ -134,21 +133,6 @@ def cmd(docker_username, docker_password, docker, docker_repo, docker_tag):
 
     nixpkgs_url = 'https://github.com/{owner}/{repo}/archive/{rev}.tar.gz'.format(**nixpkgs)
 
-    click.echo(' => Logging into hub.docker.com ... ', nl=False)
-    with click_spinner.spinner():
-        result, output, error = cli_common.command.run(
-            [
-                docker,
-                'login',
-                '--username', docker_username,
-                '--password', docker_password,
-            ],
-            stream=True,
-            stderr=subprocess.STDOUT,
-            log_command=False,
-        )
-    please_cli.utils.check_result(result, output)
-
     try:
         click.echo(' => Creating Dockerfile ... ', nl=False)
         with click_spinner.spinner():
@@ -162,12 +146,28 @@ def cmd(docker_username, docker_password, docker, docker_repo, docker_tag):
                 [
                     docker,
                     'build',
+                    '--no-cache',
                     '-t',
                     '{}:{}'.format(docker_repo, docker_tag),
                     please_cli.config.ROOT_DIR,
                 ],
                 stream=True,
                 stderr=subprocess.STDOUT,
+            )
+        please_cli.utils.check_result(result, output)
+
+        click.echo(' => Logging into hub.docker.com ... ', nl=False)
+        with click_spinner.spinner():
+            result, output, error = cli_common.command.run(
+                [
+                    docker,
+                    'login',
+                    '--username', docker_username,
+                    '--password', docker_password,
+                ],
+                stream=True,
+                stderr=subprocess.STDOUT,
+                log_command=False,
             )
         please_cli.utils.check_result(result, output)
 
