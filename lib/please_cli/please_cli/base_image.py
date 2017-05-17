@@ -71,10 +71,6 @@ WORKDIR /app
 #
 # install please command
 #
-RUN . /root/.profile \
- && mkdir /app/tmp \
- && nix-build /app/nix/default.nix -A please-cli -o /app/tmp/result-please-cli
-
 ENV \
  ENV=/etc/profile \
  PATH=/root/.nix-profile/bin:/root/.nix-profile/sbin:/bin:/sbin:/usr/bin:/usr/sbin \
@@ -82,6 +78,10 @@ ENV \
  LANG=en_US.UTF-8 \
  NIX_SSL_CERT_FILE=/root/.nix-profile/etc/ssl/certs/ca-bundle.crt \
  NIX_PATH="nixpkgs={nixpkgs_url}"
+
+RUN . /root/.profile \
+ && mkdir /app/tmp \
+ && nix-build /app/nix/default.nix -A please-cli -o /app/tmp/result-please-cli
 '''
 
 
@@ -147,6 +147,8 @@ def cmd(docker_username, docker_password, docker, docker_repo, docker_tag):
                     docker,
                     'build',
                     '--no-cache',
+                    '--pull',
+                    '--force-rm',
                     '-t',
                     '{}:{}'.format(docker_repo, docker_tag),
                     please_cli.config.ROOT_DIR,
