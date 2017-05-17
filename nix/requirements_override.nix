@@ -88,14 +88,6 @@ in skipOverrides {
     '';
   };
 
-  "click" = self: old: {
-    patchPhase = ''
-      # TODO: ignoring the locale lookup foe now, clearly this is a hack and we must get locale working on base image
-      sed -i -e "s|_verify_python3_env():|_verify_python3_env(): return\nif False:|" click/_unicodefun.py
-      sed -i -e "s| file.write(message)| file.write(message.replace('\\\u2018', '\`').replace('\\\u2019', '\`'))|" click/utils.py
-    '';
-  };
-
   "click-spinner" = self: old: {
     patchPhase = ''
       rm README.md
