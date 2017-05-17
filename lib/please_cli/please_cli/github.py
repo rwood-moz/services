@@ -21,6 +21,13 @@ for app_name, app_config in please_cli.config.APPS.items():
         DEPLOYABLE_APPS[app_name] = app_config
 
 
+def get_build_attributes(app, github_branch):
+    # XXX: remove when in production
+    if github_branch == 'taskcluster-rework':
+        github_branch = 'staging'
+    return [app, '{}.deploy.{}'.format(app, github_branch)]
+
+
 def get_build_task(index,
                    app,
                    task_group_id,
@@ -29,16 +36,14 @@ def get_build_task(index,
                    github_branch,
                    github_user_email,
                    ):
-    # XXX: remove when in production
-    _github_branch = github_branch
-    if github_branch == 'taskcluster-rework':
-        _github_branch = 'staging'
     command = ' '.join([
         './please', '-vvvvv', 'tools', 'build', app,
-        '--extra-attribute=".deploy.{}"'.format(_github_branch),
         '--cache-bucket="releng-cache"',
         '--taskcluster-secrets=repo:github.com/mozilla-releng/services:branch:' + github_branch,
         '--no-interactive',
+    ] + [
+        '--extra-attribute="{}"'.format(attribute)
+        for attribute in get_build_attributes(app, github_branch)[1:]
     ])
     return get_task(
         task_group_id,
@@ -70,7 +75,11 @@ def get_deploy_task(index,
 
     app_config = please_cli.config.APPS.get(app, {})
     deploy_type = app_config.get('deploy')
-    deploy_options = app_config.get('deploy_options', {}).get(github_branch, {})
+    # XXX: remove when in production
+    tmp = github_branch
+    if tmp == 'taskcluster-rework':
+        tmp = 'staging'
+    deploy_options = app_config.get('deploy_options', {}).get(tmp, {})
 
     if deploy_type == 'S3':
         app_csp = []
@@ -85,56 +94,58 @@ def get_deploy_task(index,
 
         app_envs = []
         for env_name, env_value in deploy_options.get('envs', {}).items():
-            app_csp.append('--env="{}: {}"'.format(env_name, env_value))
+            app_envs.append('--env="{}: {}"'.format(env_name, env_value))
         for require in app_config.get('requires', []):
             require_config = please_cli.config.APPS.get(require, {})
             require_deploy_options = require_config.get('deploy_options', {}).get(github_branch, {})
             require_url = require_deploy_options.get('url')
             if require_url:
                 env_name = '-'.join(require.split('-')[1:])
-                app_csp.append('--env="{}-url: {}"'.format(env_name, require_url))
-                
+                app_envs.append('--env="{}-url: {}"'.format(env_name, require_url))
 
-            flags=' '.join([
-                '--data-{}="{}"'.format(k, v)
-                for k, v in app_config.get('flags', dict()).items()
-            ]),
-
-        command = ' '.join([
-            './please', '-vvvvv', 'deploy:S3', app, s3_bucket,
+        command = [
+            './please', '-vvvvv',
+            'deploy:S3',
+            app,
+            '--s3-bucket=' + deploy_options['s3_bucket'],
+            '--extra-attribute=".deploy.{}"'.format(github_branch),
             '--taskcluster-secrets=repo:github.com/mozilla-releng/services:branch:' + github_branch,
-        ] + app_csp + app_env)
+        ] + app_csp + app_envs
 
     elif deploy_type == 'HEROKU':
-        command = ' '.join([
-            './please', '-vvvvv', 'deploy:HEROKU', app, deploy_options['heroku_app'],
+        command = [
+            './please', '-vvvvv',
+            'deploy:HEROKU',
+            app,
+            '--heroku-app=' + deploy_options['heroku_app'],
+            '--extra-attribute=".deploy.{}"'.format(github_branch),
             '--taskcluster-secrets=repo:github.com/mozilla-releng/services:branch:' + github_branch,
-        ])
+        ]
 
     elif deploy_type == 'TASKCLUSTER_HOOK':
-        import ipdb
-        ipdb.set_trace()
+        # TODO: ignore for now
+        return
 
     else:
         raise click.ClickException('Unknown deployment type `{}` for application `{}`'.format(deploy_type, app))
 
-    metadata = {
-        'name': '3.{index:02}. Deploying {app}'.format(
-            index=index + 1,
-            app=app,
-        ),
-        'description': '',
-        'owner': github_user_email,
-        'source': 'https://github.com/mozilla-releng/services/tree/' + github_branch,
+    return get_task(
+        task_group_id,
+        [parent_task],
+        github_commit,
+        github_branch,
+        ' '.join(command),
+        {
+            'name': '3.{index:02}. Deploying {app}'.format(
+                index=index + 1,
+                app=app,
+            ),
+            'description': '',
+            'owner': github_user_email,
+            'source': 'https://github.com/mozilla-releng/services/tree/' + github_branch,
 
-    }
-    return get_task(task_group_id,
-                    [ parent_task ],
-                    github_commit,
-                    github_branch,
-                    command,
-                    metadata,
-                    )
+        },
+    )
 
 
 def get_task(task_group_id,
@@ -268,16 +279,16 @@ def cmd(ctx,
     build_apps = []
     app_hashes = dict()
     for app in DEPLOYABLE_APPS:
-        # XXX: app_exists_in_cache, app_hash = False, ''
         click.echo('     => ' + app)
-        app_exists_in_cache, app_hash = ctx.invoke(
-            please_cli.check_cache.cmd,
-            app=app,
-            cache_url=cache_url,
-            nix_instantiate=nix_instantiate,
-            indent=8,
-            interactive=False,
-        )
+        app_exists_in_cache, app_hash = False, ''
+        #app_exists_in_cache, app_hash = ctx.invoke(
+        #    please_cli.check_cache.cmd,
+        #    app=app,
+        #    cache_url=cache_url,
+        #    nix_instantiate=nix_instantiate,
+        #    indent=8,
+        #    interactive=False,
+        #)
         app_hashes[app] = app_hash
         if not app_exists_in_cache:
             build_apps.append(app)
@@ -287,9 +298,7 @@ def cmd(ctx,
     if github_branch in please_cli.config.DEPLOYMENT_BRANCHES:
 
         # TODO: get status for our index branch
-        # status = dict()
-        # for now we will redeploy applications that were rebuild
-        status = app_hashes
+        status = {}
 
         for app in DEPLOYABLE_APPS:
             app_hash = status.get(app)
@@ -317,7 +326,7 @@ def cmd(ctx,
         )
         tasks.append((app_uuid, build_tasks[app_uuid]))
 
-    if False and deploy_apps:
+    if deploy_apps:
 
         # 2. maintanance on task
         maintanance_on_uuid = slugid.nice().decode('utf-8')
@@ -325,23 +334,12 @@ def cmd(ctx,
             maintanance_on_dependencies = [task_id]
         else:
             maintanance_on_dependencies = [i for i in build_tasks.keys()]
-        maintanance_on_command = (' && '.join([
-          'cd /tmp',
-          'wget https://github.com/mozilla-releng/services/archive/{github_commit}.tar.gz',  # noqa
-          'tar zxf {github_commit}.tar.gz',
-          'cd services-{github_commit}',
-          'env',
-          './please -vvvvv tools maintanance:on {apps}',
-        ])).format(
-            github_commit=github_commit,
-            apps=' '.join(build_apps),
-        )
         maintanance_on_task = get_task(
             task_group_id,
             maintanance_on_dependencies,
             github_commit,
             github_branch,
-            maintanance_on_command,
+            './please -vvvvv tools maintanance:on ' + ' '.join(deploy_apps),
             {
                 'name': '2. Maintanance ON',
                 'description': '',
@@ -354,47 +352,29 @@ def cmd(ctx,
 
         # 3. deploy tasks (if on production/staging)
         deploy_tasks = {}
-        if github_branch == 'production':
-            apps_config = please_cli.config.DEPLOY_PRODUCTION
-        else:
-            apps_config = please_cli.config.DEPLOY_STAGING
-        index = 0
-        for app in deploy_apps:
-            if app not in apps_config:
-                continue
+        for index, app in enumerate(sorted(deploy_apps)):
             app_uuid = slugid.nice().decode('utf-8')
-            deploy_tasks[app_uuid] = get_deploy_task(
+            app_task = get_deploy_task(
                 index,
                 app,
-                apps_config[app],
                 task_group_id,
                 maintanance_on_uuid,
                 github_commit,
                 github_branch,
                 github_user_email,
             )
-            tasks.append((app_uuid, deploy_tasks[app_uuid]))
-            index += 1
+            if app_task:
+                deploy_tasks[app_uuid] = app_task
+                tasks.append((app_uuid, deploy_tasks[app_uuid]))
 
         # 4. maintanance off task
         maintanance_off_uuid = slugid.nice().decode('utf-8')
-        maintanance_off_command = (' && '.join([
-          'cd /tmp',
-          'wget https://github.com/mozilla-releng/services/archive/{github_commit}.tar.gz',  # noqa
-          'tar zxf {github_commit}.tar.gz',
-          'cd services-{github_commit}',
-          'env',
-          './please -vvvvv tools maintanance:off {apps}',
-        ])).format(
-            github_commit=github_commit,
-            apps=' '.join(build_apps),
-        )
         maintanance_off_task = get_task(
             task_group_id,
             [i for i in deploy_tasks.keys()],
             github_commit,
             github_branch,
-            maintanance_off_command,
+            './please -vvvvv tools maintanance:off ' + ' '.join(deploy_apps),
             {
                 'name': '4. Maintanance OFF',
                 'description': '',
