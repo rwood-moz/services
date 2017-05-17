@@ -20,7 +20,7 @@ log = cli_common.log.get_logger(__name__)
 
 
 DOCKERFILE = '''
-# 
+#
 # Generated from './please tools build-base-image' command
 #
 
@@ -52,6 +52,7 @@ RUN wget -q -O- http://nixos.org/releases/nix/nix-1.11.9/nix-1.11.9-x86_64-linux
     && mkdir -p /etc/nix \
     && echo "binary-caches = https://cache.mozilla-releng.net https://cache.nixos.org" >> /etc/nix/nix.conf \
     && . /root/.profile \
+    && nix-env -iA nixpkgs.cacert \
     && nix-env -u \
     && nix-collect-garbage -d
 
@@ -181,8 +182,7 @@ def cmd(docker_username, docker_password, docker, docker_repo, docker_tag):
         please_cli.utils.check_result(result, output)
     finally:
         if os.path.exists(docker_file):
-            pass
-            #os.unlink(docker_file)
+            os.unlink(docker_file)
 
 
 if __name__ == "__main__":
