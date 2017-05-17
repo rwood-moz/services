@@ -21,11 +21,11 @@ for app_name, app_config in please_cli.config.APPS.items():
         DEPLOYABLE_APPS[app_name] = app_config
 
 
-def get_build_attributes(app, github_branch):
-    # XXX: remove when in production
+# XXX: remove when in production
+def get_depoy_branch(github_branch):
     if github_branch == 'taskcluster-rework':
-        github_branch = 'staging'
-    return [app, '{}.deploy.{}'.format(app, github_branch)]
+        return 'staging'
+    return github_branch
 
 
 def get_build_task(index,
@@ -36,21 +36,19 @@ def get_build_task(index,
                    github_branch,
                    github_user_email,
                    ):
-    command = ' '.join([
+    command = [
         './please', '-vvvvv', 'tools', 'build', app,
         '--cache-bucket="releng-cache"',
+        '--extra-attribute="{}.deploy.{}"'.format(app, get_depoy_branch(github_branch)),
         '--taskcluster-secrets=repo:github.com/mozilla-releng/services:branch:' + github_branch,
         '--no-interactive',
-    ] + [
-        '--extra-attribute="{}"'.format(attribute)
-        for attribute in get_build_attributes(app, github_branch)[1:]
-    ])
+    ]
     return get_task(
         task_group_id,
         [parent_task],
         github_commit,
         github_branch,
-        command,
+        ' '.join(command),
         {
             'name': '1.{index:02}. Building {app}'.format(
                 index=index + 1,
@@ -75,11 +73,7 @@ def get_deploy_task(index,
 
     app_config = please_cli.config.APPS.get(app, {})
     deploy_type = app_config.get('deploy')
-    # XXX: remove when in production
-    tmp = github_branch
-    if tmp == 'taskcluster-rework':
-        tmp = 'staging'
-    deploy_options = app_config.get('deploy_options', {}).get(tmp, {})
+    deploy_options = app_config.get('deploy_options', {}).get(get_depoy_branch(github_branch), {})
 
     if deploy_type == 'S3':
         app_csp = []
@@ -108,7 +102,7 @@ def get_deploy_task(index,
             'deploy:S3',
             app,
             '--s3-bucket=' + deploy_options['s3_bucket'],
-            '--extra-attribute=".deploy.{}"'.format(github_branch),
+            '--extra-attribute="{}.deploy.{}"'.format(app, get_depoy_branch(github_branch)),
             '--taskcluster-secrets=repo:github.com/mozilla-releng/services:branch:' + github_branch,
         ] + app_csp + app_envs
 
@@ -118,7 +112,7 @@ def get_deploy_task(index,
             'deploy:HEROKU',
             app,
             '--heroku-app=' + deploy_options['heroku_app'],
-            '--extra-attribute=".deploy.{}"'.format(github_branch),
+            '--extra-attribute="{}.deploy.{}"'.format(app, get_depoy_branch(github_branch)),
             '--taskcluster-secrets=repo:github.com/mozilla-releng/services:branch:' + github_branch,
         ]
 
@@ -280,15 +274,15 @@ def cmd(ctx,
     app_hashes = dict()
     for app in DEPLOYABLE_APPS:
         click.echo('     => ' + app)
-        app_exists_in_cache, app_hash = False, ''
-        #app_exists_in_cache, app_hash = ctx.invoke(
-        #    please_cli.check_cache.cmd,
-        #    app=app,
-        #    cache_url=cache_url,
-        #    nix_instantiate=nix_instantiate,
-        #    indent=8,
-        #    interactive=False,
-        #)
+        # XXX: app_exists_in_cache, app_hash = False, ''
+        app_exists_in_cache, app_hash = ctx.invoke(
+            please_cli.check_cache.cmd,
+            app=app,
+            cache_url=cache_url,
+            nix_instantiate=nix_instantiate,
+            indent=8,
+            interactive=False,
+        )
         app_hashes[app] = app_hash
         if not app_exists_in_cache:
             build_apps.append(app)
