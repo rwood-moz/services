@@ -33,28 +33,28 @@ MAINTAINER rgarbas@mozilla.com
 # install some package which are needed
 #
 RUN apt-get -q update \
-    && apt-get -q --yes install bash wget bzip2 tar \
-    && apt-get clean
-
+ && apt-get -q --yes install bash wget bzip2 tar locales \
+ && apt-get clean \
+ && locale-gen en_US.UTF-8
 
 #
 # installing Nix in multiuser mode
 #
 ONBUILD ENV \
-    NIX_PATH="nixpkgs={nixpkgs_url}"
+ NIX_PATH="nixpkgs={nixpkgs_url}"
 
 RUN wget -q -O- http://nixos.org/releases/nix/nix-1.11.9/nix-1.11.9-x86_64-linux.tar.bz2 | bzcat - | tar xf - \
-    && echo "nixbld:x:30000:nixbld1,nixbld2,nixbld3,nixbld4,nixbld5,nixbld6,nixbld7,nixbld8,nixbld9,nixbld10,nixbld11,nixbld12,nixbld13,nixbld14,nixbld15,nixbld16,nixbld17,nixbld18,nixbld19,nixbld20,nixbld21,nixbld22,nixbld23,nixbld24,nixbld25,nixbld26,nixbld27,nixbld28,nixbld29,nixbld30" >> /etc/group \
-    && for i in $(seq 1 30); do echo "nixbld$i:x:$((30000 + $i)):30000:::" >> /etc/passwd; done \
-    && mkdir -m 0755 /nix && USER=root bash nix-*-x86_64-linux/install \
-    && echo ". /root/.nix-profile/etc/profile.d/nix.sh" >> /etc/profile \
-    && rm -r /nix-*-x86_64-linux \
-    && mkdir -p /etc/nix \
-    && echo "binary-caches = https://cache.mozilla-releng.net https://cache.nixos.org" >> /etc/nix/nix.conf \
-    && . /root/.profile \
-    && nix-env -iA nixpkgs.cacert \
-    && nix-env -u \
-    && nix-collect-garbage -d
+ && echo "nixbld:x:30000:nixbld1,nixbld2,nixbld3,nixbld4,nixbld5,nixbld6,nixbld7,nixbld8,nixbld9,nixbld10,nixbld11,nixbld12,nixbld13,nixbld14,nixbld15,nixbld16,nixbld17,nixbld18,nixbld19,nixbld20,nixbld21,nixbld22,nixbld23,nixbld24,nixbld25,nixbld26,nixbld27,nixbld28,nixbld29,nixbld30" >> /etc/group \
+ && for i in $(seq 1 30); do echo "nixbld$i:x:$((30000 + $i)):30000:::" >> /etc/passwd; done \
+ && mkdir -m 0755 /nix && USER=root bash nix-*-x86_64-linux/install \
+ && echo ". /root/.nix-profile/etc/profile.d/nix.sh" >> /etc/profile \
+ && rm -r /nix-*-x86_64-linux \
+ && mkdir -p /etc/nix \
+ && echo "binary-caches = https://cache.mozilla-releng.net https://cache.nixos.org" >> /etc/nix/nix.conf \
+ && . /root/.profile \
+ && nix-env -iA nixpkgs.cacert \
+ && nix-env -u \
+ && nix-collect-garbage -d
 
 
 #
@@ -71,18 +71,18 @@ WORKDIR /app
 # install please command
 #
 RUN . /root/.profile \
-    && mkdir /app/tmp \
-    && nix-build /app/nix/default.nix -A please-cli -o /app/tmp/result-please-cli
+ && mkdir /app/tmp \
+ && nix-build /app/nix/default.nix -A please-cli -o /app/tmp/result-please-cli
 
 ENV \
-    ENV=/etc/profile \
-    PATH=/root/.nix-profile/bin:/root/.nix-profile/sbin:/bin:/sbin:/usr/bin:/usr/sbin \
-    GIT_SSL_CAINFO=/root/.nix-profile/etc/ssl/certs/ca-bundle.crt \
-    LANGUAGE=C.UTF-8 \
-    LC_ALL=C.UTF-8 \
-    LANG=C.UTF-8 \
-    NIX_SSL_CERT_FILE=/root/.nix-profile/etc/ssl/certs/ca-bundle.crt \
-    NIX_PATH="nixpkgs={nixpkgs_url}"
+ ENV=/etc/profile \
+ PATH=/root/.nix-profile/bin:/root/.nix-profile/sbin:/bin:/sbin:/usr/bin:/usr/sbin \
+ GIT_SSL_CAINFO=/root/.nix-profile/etc/ssl/certs/ca-bundle.crt \
+ LANGUAGE=en_US.UTF-8 \
+ LC_ALL=en_US.UTF-8 \
+ LANG=en_US.UTF-8 \
+ NIX_SSL_CERT_FILE=/root/.nix-profile/etc/ssl/certs/ca-bundle.crt \
+ NIX_PATH="nixpkgs={nixpkgs_url}"
 '''
 
 
