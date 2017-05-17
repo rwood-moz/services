@@ -93,10 +93,11 @@ def cmd(app, cache_url, nix_instantiate, indent=0, interactive=True):
         response = requests.get(
             '%s/%s.narinfo' % (cache_url, derivation.nix_hash),
         )
+
     app_exists = response.status_code == 200
 
     please_cli.utils.check_result(
-        app_exists,
+        app_exists and 0 or 1,
         success_message='EXISTS',
         error_message='NOT EXISTS',
         raise_exception=False,
