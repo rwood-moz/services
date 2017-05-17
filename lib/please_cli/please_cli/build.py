@@ -28,8 +28,8 @@ log = cli_common.log.get_logger(__name__)
     type=click.Choice(please_cli.config.APPS),
     )
 @click.option(
-    '--extra-attribute',
-    default="",
+    '-A', '--extra-attribute',
+    multiple=True,
     )
 @click.option(
     '--nix-build',
@@ -96,21 +96,22 @@ def cmd(app,
                 'are not in Taskcluster secret (`{}`).'.format(taskcluster_secrets)
             ))
 
-    build_result = please_cli.config.TMP_DIR + '/result-build-' + app
-    command = [
-        nix_build,
-        please_cli.config.ROOT_DIR + '/nix/default.nix',
-        '-A', app + extra_attribute,
-        '-o', build_result,
-    ]
-
     click.echo(' => Building {} application ... '.format(app), nl=False)
     with click_spinner.spinner():
-        result, output, error = cli_common.command.run(
-            command,
-            stream=True,
-            stderr=subprocess.STDOUT,
-        )
+        for index, attribute in enumerate([""] + list(extra_attribute)):
+            command = [
+                nix_build,
+                please_cli.config.ROOT_DIR + '/nix/default.nix',
+                '-A', app + attribute,
+                '-o', please_cli.config.TMP_DIR + '/result-build-{app}-{index}'.format(app=app, index=index),
+            ]
+            result, output, error = cli_common.command.run(
+                command,
+                stream=True,
+                stderr=subprocess.STDOUT,
+            )
+            if result != 0:
+                break
     please_cli.utils.check_result(
         result,
         output,
@@ -122,11 +123,17 @@ def cmd(app,
         if not os.path.exists(tmp_cache_dir):
             os.makedirs(tmp_cache_dir)
 
+        build_results = [
+            os.path.join(please_cli.config.TMP_DIR, item)
+            for item in os.listdir(please_cli.config.TMP_DIR)
+            if item.startswith('result-build-' + app)
+        ]
+
         command = [
             nix_push,
             '--dest', tmp_cache_dir,
-            '--force', build_result,
-        ]
+            '--force',
+        ] + build_results
         click.echo(' => Creating cache artifacts for {} application... '.format(app), nl=False)
         with click_spinner.spinner():
             result, output, error = cli_common.command.run(

@@ -91,4 +91,3 @@ def run_check(command, **kwargs):
         )
 
     return output
-
