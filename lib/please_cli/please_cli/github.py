@@ -304,7 +304,7 @@ def cmd(ctx,
 
     # 1. build tasks
     build_tasks = {}
-    for index, app in enumerate(build_apps):
+    for index, app in enumerate(sorted(build_apps)):
         app_uuid = slugid.nice().decode('utf-8')
         build_tasks[app_uuid] = get_build_task(
             index,
