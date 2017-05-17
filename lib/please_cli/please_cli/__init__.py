@@ -9,7 +9,7 @@ import logbook
 import cli_common.log
 
 import please_cli.build
-import please_cli.build_base_image
+import please_cli.base_image
 import please_cli.check
 import please_cli.check_cache
 import please_cli.create_certs
@@ -122,7 +122,7 @@ cmd_tools.add_command(please_cli.github.cmd, "github")
 cmd_tools.add_command(please_cli.maintanance.cmd_off, "maintanance:off")
 cmd_tools.add_command(please_cli.maintanance.cmd_on, "maintanance:on")
 cmd_tools.add_command(please_cli.nixify.cmd, "nixify")
-cmd_tools.add_command(please_cli.build_base_image.cmd, "build-base-image")
+cmd_tools.add_command(please_cli.base_image.cmd, "base-image")
 
 
 if __name__ == "__main__":

@@ -8,10 +8,6 @@ set -eu
 USE_NIX=0
 USE_DOCKER=0
 
-LANGUAGE=C.UTF-8
-LC_ALL=C.UTF-8
-LANG=C.UTF-8
-
 case "`uname`" in
   Darwin)
     if hash docker 2>/dev/null; then
