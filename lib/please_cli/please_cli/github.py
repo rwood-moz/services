@@ -171,7 +171,7 @@ def get_task(task_group_id,
         ] + scopes,
         'payload': {
             'maxRunTime': 60 * 60 * 2,  # 2 hourse in seconds
-            'image': 'garbas/mozilla-releng-services:base-latest',
+            'image': 'mozillareleng/services:base-latest',
             'features': {
                 'taskclusterProxy': True,
             },
